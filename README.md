@@ -18,7 +18,7 @@ Projeto da matéria de sistemas distribuídos UFS, Cruel Market LTDA é uma hold
 
 [Fonte]: https://crueltysquad.fandom.com/wiki/Cruelty_Squad_Wiki 
 
-[ComoFazer] : https://lucid.co/pt/diagrama/uml/tutorial-de-diagrama-de-componentes 
+[ComoFazer]: https://lucid.co/pt/diagrama/uml/tutorial-de-diagrama-de-componentes 
 
 ### P1 prototipo 
 - Conexão de múltiplos clientes; 
