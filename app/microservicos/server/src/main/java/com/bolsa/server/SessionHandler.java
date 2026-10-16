@@ -14,6 +14,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SessionHandler extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> sessoes = new ConcurrentHashMap<>();
+    private final String hostname = getHostName();
+
+    private String getHostName(){
+        String name = System.getenv("HOSTNAME");
+        if (name == null){
+            name = new String("null");
+        } 
+        return name;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -23,14 +32,14 @@ public class SessionHandler extends TextWebSocketHandler {
         session.getAttributes().put("userId", userId);
         sessoes.put(userId, session);
 
-        System.out.println("[SERVER] : Conexao - " + userId);
+        System.out.println("[" + hostname + "] : Conexao - " + userId);
         session.sendMessage(new TextMessage("Hello, " + userId+"\n"));
     }
 
     @Override 
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         String userId = (String) session.getAttributes().get("userId");
-        System.out.println("[SERVER] " + userId + " mensagem: " + message.getPayload());
+        System.out.println("[" + hostname + "] " + userId + " mensagem: " + message.getPayload());
 
         session.sendMessage(new TextMessage("echo! " + message.getPayload()));
     }
@@ -39,7 +48,7 @@ public class SessionHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = (String) session.getAttributes().get("userId");
         if (userId != null) sessoes.remove(userId);
-        System.out.println("[SERVIDOR] Desconectado: " + userId);
+        System.out.println("[" + hostname + "] Desconectado: " + userId);
     }
 
     private String extrairQuery(WebSocketSession session, String chave) {

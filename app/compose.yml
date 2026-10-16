@@ -1,0 +1,30 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - server-1
+      - server-2
+    networks:
+      - mainServer
+  
+  server-1:
+    build: ./microservicos/server
+    expose: 
+      - "8082"
+    networks: 
+      - mainServer
+
+  server-2:
+    build: ./microservicos/server
+    expose: 
+      - "8082"
+    networks: 
+      - mainServer
+
+networks:
+  mainServer:
+    driver: bridge
