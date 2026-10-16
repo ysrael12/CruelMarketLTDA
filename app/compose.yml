@@ -1,4 +1,20 @@
 services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: cruel
+      RABBITMQ_DEFAULT_PASS: cruel123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mainServer
+
   nginx:
     image: nginx:alpine
     ports:
@@ -10,19 +26,33 @@ services:
       - server-2
     networks:
       - mainServer
-  
+
   server-1:
     build: ./microservicos/server
-    expose: 
+    expose:
       - "8082"
-    networks: 
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: cruel
+      SPRING_RABBITMQ_PASSWORD: cruel123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
       - mainServer
 
   server-2:
     build: ./microservicos/server
-    expose: 
+    expose:
       - "8082"
-    networks: 
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: cruel
+      SPRING_RABBITMQ_PASSWORD: cruel123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
       - mainServer
 
 networks:
