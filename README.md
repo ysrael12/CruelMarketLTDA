@@ -28,3 +28,12 @@ Projeto da matéria de sistemas distribuídos UFS, Cruel Market LTDA é uma hold
 - envio de ordens; 
 - comunicação cliente/servidor; 
 - atualização básica do home broker;
+
+### Funcionalidades
+- Gateway : o load balancer, responsável por reconectar também 
+- Market Data : informações sobre o mercado, quantidade de ativos e preços
+- Matching Engine : Recebe as ordens e tenta casar compras e vendas. Apenas processa os dados e repassa o resultado ao Order Service.
+- Order Service : informação sobre matching engine, além de manter o histórico de ordens e negociações
+- Server : verifica se o usuário mandou um método válido e faz o push websocket
+- Session : validação de identidade
+- User Data : saldo e quantos ativos o usuário tem
