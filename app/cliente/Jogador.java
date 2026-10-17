@@ -41,6 +41,21 @@ public class Jogador {
             .join();
         Thread.sleep(300);
     }
+    
+	@PostMapping("/ordem")
+	public ResponseEntity<String> criarOrdem(
+        @RequestHeader(value = "X-Jogador", required = false) String jogador,
+        @RequestHeader(value = "X-Senha", required = false) String senha,
+        @RequestBody String dadosDaOrdem) {
+
+			if (!AuthSimples.loginValido(jogador, senha)) {
+				return ResponseEntity.status(401).body("Erro 401: Jogador ou senha incorretos!");
+			}
+
+			System.out.println("Ordem recebida do jogador: " + jogador);
+			return ResponseEntity.ok("Ordem aceite para " + jogador);
+}
+
     public void enviar(String json) {
         webSocket.sendText(json, true);
     }
