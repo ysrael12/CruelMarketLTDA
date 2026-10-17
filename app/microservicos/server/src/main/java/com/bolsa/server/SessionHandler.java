@@ -23,14 +23,43 @@ public class SessionHandler extends TextWebSocketHandler {
         } 
         return name;
     }
+    
+    private static final Map<String, String> JOGADORES_AUTORIZADOS = Map.of(
+        "jogador1", "senha123",
+        "jogador2", "abc456"
+    );
+
+    private boolean validarCredenciais(String userId, String senha) {
+        if (userId == null || senha == null) {
+            return false;
+        }
+        String senhaCorreta = JOGADORES_AUTORIZADOS.get(userId);
+        if (senhaCorreta == null) {
+            return false;
+        }
+        return java.security.MessageDigest.isEqual(
+            senha.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            senhaCorreta.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        );
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String userId = extrairQuery(session, "userId");
-        if (userId == null) userId = "anom-" + session.getId();
+		String userId = extrairQuery(session, "userId");
+		String senha = extrairQuery(session, "senha");
+
+			// Validação
+		if (!validarCredenciais(userId, senha)) {
+			System.out.println("[" + hostname + "] : Autenticacao falhou para o usuario: " + userId);
+			session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Credenciais invalidas"));
+			return;
+		}
 
         session.getAttributes().put("userId", userId);
         sessoes.put(userId, session);
+        
+        // Envia um evento de sessão para o rabbit
+        rabbitTemplate.convertAndSend("sessao.exchange", "sessao.login", "Sessao iniciada para: " + userId + " no " + hostname);
 
         System.out.println("[" + hostname + "] : Conexao - " + userId);
         session.sendMessage(new TextMessage("Hello, " + userId+"\n"));
@@ -47,7 +76,11 @@ public class SessionHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = (String) session.getAttributes().get("userId");
-        if (userId != null) sessoes.remove(userId);
+        if (userId != null){
+			sessoes.remove(userId);
+			
+			//Envia um evento de sessão encerrada para o rabbit
+			rabbitTemplate.convertAndSend("sessao.exchange", "sessao.logout", "Sessao encerrada para: " + userId);
         System.out.println("[" + hostname + "] Desconectado: " + userId);
     }
 
