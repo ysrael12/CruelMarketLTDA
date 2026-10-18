@@ -55,6 +55,16 @@ services:
     networks:
       - mainServer
 
+  order:
+    build: ./microservicos/order service
+    networks:
+      - mainServer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+
 networks:
   mainServer:
     driver: bridge
