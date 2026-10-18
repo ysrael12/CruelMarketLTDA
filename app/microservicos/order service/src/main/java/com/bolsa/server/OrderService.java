@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
-public class OrderBookService {
+public class OrderService {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -25,6 +25,7 @@ public class OrderBookService {
 
     @RabbitListener(queuesToDeclare = @Queue(name = "ordens.fila", durable = "true"))
     public synchronized void receberOrdem(Message msg) {
+		//faz a mensagem
         String mensagem = new String(msg.getBody(), StandardCharsets.UTF_8)
                 .replace("\"", "").trim();
         System.out.println("[MOTOR DA BOLSA] Recebido da fila: " + mensagem);
@@ -60,6 +61,7 @@ public class OrderBookService {
         }
     }
 
+	//Matching
     private void cruzarOrdens(String ativo) {
         for (Ordem c : compras) {
             if (!c.ativo.equals(ativo) || c.quantidade <= 0) continue;
@@ -80,7 +82,7 @@ public class OrderBookService {
                     System.out.println("Comprador: " + c.usuario + " | Vendedor: " + v.usuario);
                     System.out.println("Quantidade: " + qtdNegociada + " | Preco Executado: R$ " + precoExecucao);
 
-                    // Envia o resultado de volta para os servidores WebSocket notificarem os jogadores
+                    // Envia o resultado de volta
                     String eventoTrade = c.usuario + ";" + v.usuario + ";" + ativo + ";" + qtdNegociada + ";" + precoExecucao;
                     rabbitTemplate.convertAndSend("trades.exchange", "", eventoTrade);
 
@@ -92,6 +94,7 @@ public class OrderBookService {
         vendas.removeIf(o -> o.quantidade <= 0);
     }
 
+	//Criação de ordem
     private static class Ordem {
         long id;
         String usuario, tipo, ativo;

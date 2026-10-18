@@ -73,7 +73,7 @@ public class SessionHandler extends TextWebSocketHandler {
 
         rabbitTemplate.convertAndSend("ordens.fila", userId + ":" + payload);
 
-        session.sendMessage(new TextMessage("Ordem enviada para o motor da bolsa: " + payload + "\n"));
+        session.sendMessage(new TextMessage("Ordem enviada para o motor: " + payload + "\n"));
     }
 
     @Override
