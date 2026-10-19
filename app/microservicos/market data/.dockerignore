@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+data
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.log
+*.tsbuildinfo
+.env
+.env.*
+**/*.spec.ts

@@ -24,6 +24,7 @@ services:
     depends_on:
       - server-1
       - server-2
+      - market-data
     networks:
       - mainServer
 
@@ -65,6 +66,31 @@ services:
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
 
+  market-data:
+    build: "./microservicos/market data"
+    expose:
+      - "3000"
+    environment:
+      PORT: 3000
+      RABBITMQ_URL: amqp://cruel:cruel123@rabbitmq:5672
+      PARTICOES: 4
+      DB_PATH: /app/data/market.db
+    volumes:
+      - market-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - mainServer
+
 networks:
   mainServer:
     driver: bridge
+
+volumes:
+  market-data:
