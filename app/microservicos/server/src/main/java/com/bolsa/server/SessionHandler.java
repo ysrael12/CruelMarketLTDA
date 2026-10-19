@@ -118,6 +118,31 @@ public class SessionHandler extends TextWebSocketHandler {
         }
     }
 
+    // Recebe o preço publicado pelo market-data e faz push para os jogadores conectados.
+    // Fila anônima e exclusiva: cada instância recebe uma cópia (a q.gateway é consumida pela Sonda).
+    @RabbitListener(bindings = @QueueBinding(
+        value = @Queue(value = "", durable = "false", exclusive = "true", autoDelete = "true"),
+        exchange = @Exchange(value = "cruel.eventos", type = ExchangeTypes.TOPIC),
+        key = "price.updated.*.*"
+    ))
+    public void notificarPrecoAosJogadores(Message msg) {
+        try {
+            String json = new String(msg.getBody(), StandardCharsets.UTF_8);
+            TextMessage saida = new TextMessage(json);
+
+            for (WebSocketSession sessao : sessoes.values()) {
+                if (!sessao.isOpen()) continue;
+                try {
+                    sessao.sendMessage(saida);
+                } catch (Exception e) {
+                    System.out.println("[" + hostname + "] Falha ao enviar preco: " + e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[" + hostname + "] Erro ao repassar preco: " + e.getMessage());
+        }
+    }
+
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = (String) session.getAttributes().get("userId");

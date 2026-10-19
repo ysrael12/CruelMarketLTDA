@@ -4,6 +4,7 @@ FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
+RUN apk add --no-cache python3 make g++
 COPY package.json bun.lock* ./
 RUN if [ -f bun.lock ] || [ -f bun.lockb ]; then \
       bun install --frozen-lockfile; \
@@ -16,6 +17,7 @@ COPY . .
 RUN bun run build
 
 FROM base AS prod-deps
+RUN apk add --no-cache python3 make g++
 COPY package.json bun.lock* ./
 RUN if [ -f bun.lock ] || [ -f bun.lockb ]; then \
       bun install --frozen-lockfile --production; \
