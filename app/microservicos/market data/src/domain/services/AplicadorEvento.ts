@@ -22,6 +22,11 @@ export class AplicadorEvento {
             return;
         }
         if (evento.tipo === TipoEvento.FALENCIA_FATAL) {
+            if (!ativo.podeFalir) {
+                throw new Error(
+                    `O ativo ${ativo.ticker} não pode falir (podeFalir = false)`,
+                );
+            }
             ativo.falir();
             return;
         }

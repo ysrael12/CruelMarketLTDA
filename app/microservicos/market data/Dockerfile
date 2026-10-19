@@ -26,10 +26,12 @@ RUN if [ -f bun.lock ] || [ -f bun.lockb ]; then \
 FROM base AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
-    DB_PATH=/app/data/market.db
+    DB_PATH=/app/data/market.db \
+    CONFIG_PATH=/app/config/ativos.json
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY config ./config
 COPY package.json ./
 
 RUN mkdir -p /app/data && chown bun:bun /app/data

@@ -1,10 +1,12 @@
 import { Ativo } from "../Ativo";
+import type { FonteAleatoria } from "./aleatorio";
 
-/** Fonte de aleatoriedade injetável para deixar as políticas determinísticas em teste. */
-export type FonteAleatoria = () => number;
+export type { FonteAleatoria } from "./aleatorio";
 
 export interface PoliticaPreco {
     proximoPreco(ativo: Ativo): number;
+    /** Avança o estado que a política mantém no ativo (ex.: fase do ciclo). */
+    avancar?(ativo: Ativo, intervaloMs: number): void;
 }
 
 /** Fração aleatória uniforme em [-amplitude/2, +amplitude/2]. */

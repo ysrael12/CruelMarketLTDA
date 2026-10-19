@@ -1,6 +1,6 @@
 import { Ativo } from "../Ativo";
+import type { FonteAleatoria } from "./PoliticaPreco";
 import {
-    FonteAleatoria,
     PoliticaPreco,
     limitarAoIntervalo,
     variacaoAleatoria,

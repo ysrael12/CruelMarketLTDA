@@ -4,14 +4,15 @@ import { PoliticaCiclo } from "./PoliticaCiclo";
 import { PoliticaFixo } from "./PoliticaFixo";
 import { PoliticaPreco } from "./PoliticaPreco";
 import { PoliticaRandomWalk } from "./PoliticaRandomWalk";
+import type { FonteAleatoria } from "./aleatorio";
 
 export type PoliticasPorPerfil = Record<PerfilPreco, PoliticaPreco>;
 
-export function politicasPadrao(): PoliticasPorPerfil {
+export function politicasPadrao(aleatorio: FonteAleatoria = Math.random): PoliticasPorPerfil {
     return {
-        [PerfilPreco.BLUECHIP]: new PoliticaBluechip(),
-        [PerfilPreco.CICLO]: new PoliticaCiclo(),
-        [PerfilPreco.RANDOM_WALK]: new PoliticaRandomWalk(),
+        [PerfilPreco.BLUECHIP]: new PoliticaBluechip(0.001, 0.004, 0.001, aleatorio),
+        [PerfilPreco.CICLO]: new PoliticaCiclo(0.02, 40, aleatorio),
+        [PerfilPreco.RANDOM_WALK]: new PoliticaRandomWalk(0.06, aleatorio),
         [PerfilPreco.FIXO]: new PoliticaFixo(),
     };
 }
@@ -46,9 +47,13 @@ export class RelogioMercado {
         if (anterior !== undefined && instante - anterior < this.intervaloTickMs) {
             return ativo.precoReferencia;
         }
+
+        const intervalo = anterior === undefined ? this.intervaloTickMs : instante - anterior;
         this.ultimoTick.set(ativo.ticker, instante);
 
-        ativo.atualizarPrecoReferencia(this.politicas[ativo.perfil].proximoPreco(ativo));
+        const politica = this.politicas[ativo.perfil];
+        ativo.atualizarPrecoReferencia(politica.proximoPreco(ativo));
+        politica.avancar?.(ativo, intervalo);
         return ativo.precoReferencia;
     }
 }

@@ -75,8 +75,11 @@ services:
       RABBITMQ_URL: amqp://cruel:cruel123@rabbitmq:5672
       PARTICOES: 4
       DB_PATH: /app/data/market.db
+      TICK_MS: 1000
+      SEED_MERCADO: ""
     volumes:
       - market-data:/app/data
+      - "./microservicos/market data/config:/app/config:ro"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s

@@ -12,6 +12,9 @@ src/
 │   ├── ports/
 │   └── services/
 └── usecases/
+
+config/
+└── ativos.json   (catálogo inicial, RF23/RNF08)
 ```
 
 As classes abaixo são as do desenho do microserviço; as que ainda não existem indicam o destino previsto em cada pasta.
@@ -25,6 +28,7 @@ classDiagram
   class Ativo {
     +String ticker
     +String nome
+    +String descricao
     +Categoria categoria
     +PerfilPreco perfil
     +Decimal piso
@@ -34,10 +38,14 @@ classDiagram
     +StatusAtivo status
     +Boolean podeFalir
     +String mensagemGameOver
+    +Decimal faseCiclo
+    +Decimal cicloSegundos
     +estaAtivo() Boolean
+    +precoExibido() Decimal
     +falir() void
     +atualizarPrecoReferencia(Decimal preco) void
     +atualizarUltimoPreco(Decimal preco) void
+    +atualizarFaseCiclo(Decimal fase) void
   }
 
   class Negociacao {
@@ -118,6 +126,7 @@ classDiagram
   class PoliticaPreco {
     <<interface>>
     +proximoPreco(Ativo ativo) Decimal
+    +avancar(Ativo ativo, long intervaloMs) void
   }
 
   class PoliticaBluechip {
@@ -172,7 +181,15 @@ classDiagram
     <<DTO>>
     +String ativo
     +Decimal preco
+    +OrigemPreco origem
+    +Long sequencia
     +Long timestamp
+  }
+
+  class OrigemPreco {
+    <<enumeration>>
+    TICK
+    NEGOCIO
   }
 
   RelogioMercado --> PoliticaPreco : usa por PerfilPreco
@@ -189,9 +206,12 @@ classDiagram
   AtualizadorUltimoPreco --> Negociacao
 
   PublicadorPreco ..> EventoPreco
+  EventoPreco --> OrigemPreco
 ```
 
 As políticas recebem uma `FonteAleatoria` (`() => number`, padrão `Math.random`) e parâmetros de amplitude no construtor, então são determinísticas nos testes. `PoliticaPreco.ts` também exporta `limitarAoIntervalo` e `arredondarPreco`, usados por todas as políticas. As portas de `src/domain/ports` exportam, junto da interface, o token de injeção do Nest (`ATIVO_REPOSITORY`, `NEGOCIACAO_REPOSITORY`, `EVENTO_MERCADO_REPOSITORY`, `PUBLICADOR_PRECO`).
+
+`PoliticaCiclo` percorre uma senoide entre `piso` e `teto`: a fase fica em `Ativo.faseCiclo` e avança por `avancar(ativo, intervaloMs)` usando `cicloSegundos` (20–60 s, RF04), então o ciclo continua de onde parou após um restart (RNF06). O relógio é criado em `src/usecases/mercado.providers.ts`, que lê `TICK_MS` (padrão 1000) e `SEED_MERCADO`; com seed preenchida, `criarGeradorSemeado` (mulberry32) repete exatamente a mesma sequência de preços (RNF05).
 
 ---
 
@@ -311,6 +331,26 @@ classDiagram
   class TypeOrmNegociacaoRepository
   class TypeOrmEventoMercadoRepository
 
+  class SeedService {
+    +onApplicationBootstrap() Promise
+    +semear(List~AtivoConfig~ configs) List~String~
+  }
+
+  class AtivoConfig {
+    <<DTO>>
+    +String ticker
+    +String nome
+    +String descricao
+    +Categoria categoria
+    +PerfilPreco perfil
+    +Decimal piso
+    +Decimal teto
+    +Decimal precoReferencia
+    +Boolean podeFalir
+    +String mensagemGameOver
+    +Decimal cicloSegundos
+  }
+
   AtivoRepository <|.. TypeOrmAtivoRepository
   NegociacaoRepository <|.. TypeOrmNegociacaoRepository
   EventoMercadoRepository <|.. TypeOrmEventoMercadoRepository
@@ -318,11 +358,17 @@ classDiagram
   DatabaseModule ..> TypeOrmAtivoRepository : registra
   DatabaseModule ..> TypeOrmNegociacaoRepository : registra
   DatabaseModule ..> TypeOrmEventoMercadoRepository : registra
+  DatabaseModule ..> SeedService : registra
+
+  SeedService ..> AtivoConfig : lê de config/ativos.json
+  SeedService --> Ativo : cria os ausentes
 
   TypeOrmAtivoRepository --> Ativo
   TypeOrmNegociacaoRepository --> Negociacao
   TypeOrmEventoMercadoRepository --> EventoMercado
 ```
+
+`SeedService` roda no boot (`SEED_ON_STARTUP`, padrão ligado) e cria apenas os ativos que ainda não existem, então reiniciar o serviço não apaga preço nem status `FALIDO`. O catálogo vem de `config/ativos.json` (`CONFIG_PATH`), o que atende RF23 e RNF08.
 
 ---
 
@@ -355,6 +401,8 @@ classDiagram
     <<DTO>>
     +String ativo
     +Decimal preco
+    +OrigemPreco origem
+    +Long sequencia
     +Long timestamp
   }
 
@@ -372,7 +420,7 @@ classDiagram
 | Pasta | Classes |
 |---|---|
 | `src/domain` | `Ativo`, `Negociacao`, `EventoMercado`, enums, serviços de domínio e interfaces de repositório/publicação |
-| `src/usecases` | `RegistrarNegociacaoUseCase`, `ExecutarTickUseCase`, `AplicarEventoUseCase`, `ConsultarAtivosUseCase`, `ConsultarAtivoUseCase`, `ConsultarHistoricoUseCase`, `AppService`, `ResumoAtivo` |
+| `src/usecases` | `RegistrarNegociacaoUseCase`, `ExecutarTickUseCase`, `AplicarEventoUseCase`, `ConsultarAtivosUseCase`, `ConsultarAtivoUseCase`, `ConsultarHistoricoUseCase`, `AppService`, `ResumoAtivo`, `mercado.providers` |
 | `src/controller` | `AtivosController`, `AppController`, `HealthController` |
-| `src/database` | `DatabaseModule` e implementações TypeORM dos repositórios |
+| `src/database` | `DatabaseModule`, `SeedService`, `ativos.config` e implementações TypeORM dos repositórios |
 | `src/broker` (a criar) | `TradeExecutedConsumer`, `RabbitPublicadorPreco`, `EventoTrade`, `EventoPreco` |

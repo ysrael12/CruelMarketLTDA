@@ -1,0 +1,120 @@
+{
+  "nota": "Catalogo inicial da aba Ativos da planilha de P1. A peca usa o ticker provisorio ORGN porque a planilha nao definiu o ticker oficial; renomeie aqui quando o grupo fechar.",
+  "ativos": [
+    {
+      "ticker": "CRUS",
+      "nome": "Cruelty Squad",
+      "descricao": "Bluechip de segurança; quase não cai.",
+      "categoria": "ACAO",
+      "perfil": "BLUECHIP",
+      "piso": 90,
+      "teto": 150,
+      "precoReferencia": 110,
+      "podeFalir": false
+    },
+    {
+      "ticker": "GDHD",
+      "nome": "Godhead Heavy Industries",
+      "descricao": "Empresa em decadência.",
+      "categoria": "ACAO",
+      "perfil": "CICLO",
+      "piso": 30,
+      "teto": 90,
+      "precoReferencia": 55,
+      "podeFalir": false,
+      "cicloSegundos": 60
+    },
+    {
+      "ticker": "GTC",
+      "nome": "G-Tech",
+      "descricao": "Startup hype.",
+      "categoria": "ACAO",
+      "perfil": "CICLO",
+      "piso": 20,
+      "teto": 70,
+      "precoReferencia": 45,
+      "podeFalir": true,
+      "mensagemGameOver": "Pivotou para o além.",
+      "cicloSegundos": 40
+    },
+    {
+      "ticker": "AOI",
+      "nome": "Advanced Orbital Instruments",
+      "categoria": "ACAO",
+      "perfil": "RANDOM_WALK",
+      "piso": 10,
+      "teto": 80,
+      "precoReferencia": 40,
+      "podeFalir": false
+    },
+    {
+      "ticker": "GAGA",
+      "nome": "GamesGames",
+      "descricao": "Referência à GameStop.",
+      "categoria": "ACAO",
+      "perfil": "RANDOM_WALK",
+      "piso": 8,
+      "teto": 60,
+      "precoReferencia": 30,
+      "podeFalir": true,
+      "mensagemGameOver": "Game over, literalmente."
+    },
+    {
+      "ticker": "CSFT",
+      "nome": "Consumer Softproducts",
+      "descricao": "Bom para testes de carga.",
+      "categoria": "ACAO",
+      "perfil": "CICLO",
+      "piso": 15,
+      "teto": 60,
+      "precoReferencia": 35,
+      "podeFalir": false,
+      "cicloSegundos": 20
+    },
+    {
+      "ticker": "CIV",
+      "nome": "Civilian",
+      "descricao": "Ativo barato e volátil.",
+      "categoria": "PEIXE",
+      "perfil": "CICLO",
+      "piso": 2,
+      "teto": 15,
+      "precoReferencia": 7,
+      "podeFalir": false,
+      "cicloSegundos": 20
+    },
+    {
+      "ticker": "SLRP",
+      "nome": "Slurper",
+      "categoria": "PEIXE",
+      "perfil": "CICLO",
+      "piso": 3,
+      "teto": 18,
+      "precoReferencia": 8,
+      "podeFalir": false,
+      "cicloSegundos": 20
+    },
+    {
+      "ticker": "BRNY",
+      "nome": "Brainy",
+      "descricao": "Peixe caro e raro.",
+      "categoria": "PEIXE",
+      "perfil": "RANDOM_WALK",
+      "piso": 60,
+      "teto": 250,
+      "precoReferencia": 150,
+      "podeFalir": false
+    },
+    {
+      "ticker": "ORGN",
+      "nome": "Órgão",
+      "descricao": "Peça com ticker provisório; a planilha ainda não definiu o oficial.",
+      "categoria": "PECA",
+      "perfil": "RANDOM_WALK",
+      "piso": 5,
+      "teto": 40,
+      "precoReferencia": 15,
+      "podeFalir": false
+    }
+  ]
+}

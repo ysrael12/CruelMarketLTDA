@@ -26,6 +26,9 @@ export class Ativo {
     @Column()
     nome: string;
 
+    @Column({ default: "" })
+    descricao: string;
+
     @Column({ type: "simple-enum", enum: Categoria })
     categoria: Categoria;
 
@@ -41,11 +44,20 @@ export class Ativo {
     @Column("decimal", { precision: 12, scale: 2 })
     precoReferencia: number;
 
-    @Column("decimal", { precision: 12, scale: 2 })
-    ultimoPreco: number;
+    /** Nulo enquanto o ativo ainda não teve nenhuma negociação. */
+    @Column("decimal", { precision: 12, scale: 2, nullable: true })
+    ultimoPreco: number | null;
 
     @Column({ type: "simple-enum", enum: StatusAtivo, default: StatusAtivo.ATIVO })
     status: StatusAtivo;
+
+    /** Fase do ciclo em [0,1): 0 = centro, 0,25 = teto, 0,5 = centro, 0,75 = piso. */
+    @Column("float", { default: 0 })
+    faseCiclo: number;
+
+    /** Duração de um ciclo completo (subida + descida); nulo usa o padrão da política. */
+    @Column("float", { nullable: true })
+    cicloSegundos: number | null;
 
     @Column({ default: false })
     podeFalir: boolean;
@@ -61,12 +73,21 @@ export class Ativo {
         return this.status === StatusAtivo.ATIVO;
     }
 
+    /** Preço mostrado ao jogador: o do último negócio; sem negócio, o de referência. */
+    precoExibido(): number {
+        return this.ultimoPreco ?? this.precoReferencia;
+    }
+
     atualizarPrecoReferencia(preco: number): void {
         this.precoReferencia = this.limitarAoIntervalo(preco);
     }
 
     atualizarUltimoPreco(preco: number): void {
         this.ultimoPreco = this.limitarAoIntervalo(preco);
+    }
+
+    atualizarFaseCiclo(fase: number): void {
+        this.faseCiclo = ((fase % 1) + 1) % 1;
     }
 
     private limitarAoIntervalo(preco: number): number {
