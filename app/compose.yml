@@ -68,6 +68,7 @@ services:
 
   market-data:
     build: "./microservicos/market data"
+    restart: unless-stopped
     expose:
       - "3000"
     environment:
@@ -85,6 +86,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     depends_on:
       rabbitmq:
         condition: service_healthy

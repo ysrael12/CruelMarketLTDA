@@ -78,6 +78,15 @@ export class Ativo {
         return this.ultimoPreco ?? this.precoReferencia;
     }
 
+    /** Variação do preço exibido sobre o preço de referência, em % com duas casas. */
+    variacaoPercentual(): number {
+        if (this.precoReferencia <= 0) {
+            return 0;
+        }
+        const variacao = (this.precoExibido() / this.precoReferencia - 1) * 100;
+        return Math.round(variacao * 100) / 100;
+    }
+
     atualizarPrecoReferencia(preco: number): void {
         this.precoReferencia = this.limitarAoIntervalo(preco);
     }

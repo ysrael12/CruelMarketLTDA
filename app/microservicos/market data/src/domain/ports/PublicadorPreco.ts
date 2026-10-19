@@ -1,3 +1,5 @@
+import type { StatusAtivo } from "../Ativo";
+
 /** Token de injeção do adaptador de publicação de preços no broker. */
 export const PUBLICADOR_PRECO = Symbol("PublicadorPreco");
 
@@ -15,8 +17,13 @@ export interface EventoPreco {
     /** Sequência global para o cliente detectar perdas. */
     sequencia: number;
     timestamp: number;
+    /** Presente só quando o preço sai de um ativo que faliu (RF05: GAME OVER no cliente). */
+    status?: StatusAtivo;
+    mensagemGameOver?: string;
 }
 
 export interface PublicadorPreco {
     publicar(evento: EventoPreco): Promise<void>;
+    /** Falso quando o broker está fora: o mercado continua andando sem publicar. */
+    disponivel(): boolean;
 }

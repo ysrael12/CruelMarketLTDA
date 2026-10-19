@@ -5,7 +5,13 @@ import { dirname, resolve } from 'node:path';
 import { Ativo } from '../domain/Ativo';
 import { EventoMercado } from '../domain/EventoMercado';
 import { Negociacao } from '../domain/Negociacao';
+import { ATIVO_REPOSITORY } from '../domain/ports/AtivoRepository';
+import { EVENTO_MERCADO_REPOSITORY } from '../domain/ports/EventoMercadoRepository';
+import { NEGOCIACAO_REPOSITORY } from '../domain/ports/NegociacaoRepository';
+import { TypeOrmAtivoRepository } from './ativo.repository';
 import { lerAtivosConfig } from './ativos.config';
+import { TypeOrmEventoMercadoRepository } from './evento-mercado.repository';
+import { TypeOrmNegociacaoRepository } from './negociacao.repository';
 import { ATIVOS_CONFIG, SeedService } from './seed.service';
 
 const caminhoBanco = resolve(process.env.DB_PATH ?? 'data/market.db');
@@ -28,7 +34,18 @@ if (caminhoBanco !== ':memory:') {
   providers: [
     SeedService,
     { provide: ATIVOS_CONFIG, useFactory: () => lerAtivosConfig() },
+    TypeOrmAtivoRepository,
+    TypeOrmNegociacaoRepository,
+    TypeOrmEventoMercadoRepository,
+    { provide: ATIVO_REPOSITORY, useExisting: TypeOrmAtivoRepository },
+    { provide: NEGOCIACAO_REPOSITORY, useExisting: TypeOrmNegociacaoRepository },
+    { provide: EVENTO_MERCADO_REPOSITORY, useExisting: TypeOrmEventoMercadoRepository },
   ],
-  exports: [TypeOrmModule],
+  exports: [
+    TypeOrmModule,
+    ATIVO_REPOSITORY,
+    NEGOCIACAO_REPOSITORY,
+    EVENTO_MERCADO_REPOSITORY,
+  ],
 })
 export class DatabaseModule {}

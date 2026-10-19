@@ -23,7 +23,7 @@ export class EventoMercado {
 
     @ManyToOne(() => Ativo, { nullable: true, onDelete: "SET NULL" })
     @JoinColumn({ name: "ticker" })
-    ativo: Ativo | null;
+    ativo: Ativo;
 
     @Column("datetime")
     anunciadoEm: Date;
