@@ -102,7 +102,7 @@ public class RabbitConfig {
         return duravel(Nomes.FILA_GATEWAY).build();
     }
 
-    @Bean
+   @Bean
     Declarables bindingsGateway() {
         return new Declarables(
                 BindingBuilder.bind(filaGateway())
@@ -110,10 +110,7 @@ public class RabbitConfig {
                         .with(Nomes.ORDER_REJECTED + ".*.*"),
                 BindingBuilder.bind(filaGateway())
                         .to(eventosExchange())
-                        .with(Nomes.ORDER_ACCEPTED + ".*.*"),
-                BindingBuilder.bind(filaGateway()).
-                        to(eventosExchange())
-                        .with(Nomes.PRICE_UPDATED + ".*.*"));
+                        .with(Nomes.ORDER_ACCEPTED + ".*.*"));
     }
 
     /*
