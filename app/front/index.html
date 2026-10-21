@@ -363,6 +363,25 @@ a{color:inherit}
   box-shadow:6px 6px 0 var(--blood);z-index:9999;transition:transform .18s steps(3);
 }
 .toast.on{transform:translate(-50%,0)}
+
+/* ── login ── */
+.login{
+  position:fixed;inset:0;z-index:9990;display:flex;align-items:center;justify-content:center;
+  padding:16px;background:rgba(10,11,6,.92);
+}
+.login[hidden]{display:none}
+.login .panel{width:100%;max-width:400px}
+.login form{display:flex;flex-direction:column;gap:14px;padding:18px}
+.login h2{margin:0;font-family:var(--disp);font-weight:400;font-size:30px;color:var(--acid);text-shadow:3px 3px 0 var(--blood)}
+.login p{margin:0;font-size:13px;color:var(--mute)}
+.login input{
+  width:100%;padding:11px 12px;border:2px solid var(--line);background:var(--panel2);
+  color:var(--ink);font:inherit;font-size:16px;
+}
+.login input:focus{outline:none;border-color:var(--acid)}
+.login .err{min-height:20px;font-size:13px;color:var(--down)}
+.tag.sair{border:0;font:inherit;font-family:var(--pix);font-weight:700;font-size:12px;letter-spacing:.06em;cursor:pointer}
+.tag.sair:hover{background:var(--acid)}
 </style>
 </head>
 <body>
@@ -396,6 +415,26 @@ a{color:inherit}
 <div class="fx noise"></div>
 <div class="fx frame"></div>
 
+<div class="login" id="login">
+  <div class="panel hot">
+    <div class="ph rot">ACESSO AO PREGÃO <small>CRUELMARKET</small></div>
+    <form id="login-form" autocomplete="off">
+      <h2>ENTRAR</h2>
+      <p>Identifique-se para operar. A carne é um recurso.</p>
+      <div class="field">
+        <label class="lb2" for="login-user">JOGADOR</label>
+        <input id="login-user" name="userId" required autofocus spellcheck="false">
+      </div>
+      <div class="field">
+        <label class="lb2" for="login-senha">SENHA</label>
+        <input id="login-senha" name="senha" type="password" required>
+      </div>
+      <div class="err" id="login-err" role="alert"></div>
+      <button class="submit" id="login-btn" type="submit">ENTRAR NO PREGÃO</button>
+    </form>
+  </div>
+</div>
+
 <div class="stage" id="stage">
   <header class="hud">
     <div class="brand">
@@ -410,7 +449,7 @@ a{color:inherit}
       <span class="chip">SESSÃO <b id="clock">03:42</b> / 10:00</span>
       <span class="chip">TICK 1 s</span>
       <div class="sw" id="sw"></div>
-      <span class="tag">JOGADOR_07</span>
+      <button class="tag sair" id="jogador-tag" type="button" title="Sair" hidden>JOGADOR</button>
     </div>
   </header>
 
@@ -1048,7 +1087,10 @@ setInterval(() => {
 /* ─────────────────────── dados ao vivo (market-data) ─────────────────────── */
 const API_ATIVOS = '/ativos';
 const API_EVENTOS = '/eventos?limite=6';
-const JOGADOR = { userId: 'jogador1', senha: 'senha123' };
+/* credenciais só em memória: recarregar a página pede login de novo */
+let jogador = null;
+let autenticado = false;
+let reconectar = null;
 
 let ws = null;
 let tentativasWs = 0;
@@ -1181,37 +1223,94 @@ function tratarMensagem(texto) {
   if (texto.startsWith('[MATCH!]')) flash(texto.replace('[MATCH!] ', ''));
 }
 
+function mostrarLogin(msg) {
+  document.getElementById('login').hidden = false;
+  document.getElementById('jogador-tag').hidden = true;
+  document.getElementById('login-err').textContent = msg || '';
+  document.getElementById('login-btn').disabled = false;
+  const campo = document.getElementById('login-senha');
+  campo.value = '';
+  (msg ? campo : document.getElementById('login-user')).focus();
+}
+
+function entrar() {
+  document.getElementById('login').hidden = true;
+  document.getElementById('jogador-tag').hidden = false;
+  document.getElementById('jogador-tag').textContent = jogador.userId.toUpperCase() + ' · SAIR';
+}
+
+function sair() {
+  const antigo = ws;
+  jogador = null;
+  autenticado = false;
+  clearTimeout(reconectar);
+  ws = null;
+  if (antigo) antigo.close();
+  definirConexao('OFFLINE');
+  mostrarLogin('');
+}
+
 function conectar() {
+  if (!jogador) return;
   const protocolo = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = location.host || 'localhost:8080';
-  const url = protocolo + '//' + host + '/ws?userId=' + encodeURIComponent(JOGADOR.userId) +
-    '&senha=' + encodeURIComponent(JOGADOR.senha);
+  const url = protocolo + '//' + host + '/ws?userId=' + encodeURIComponent(jogador.userId) +
+    '&senha=' + encodeURIComponent(jogador.senha);
 
+  let socket;
   try {
-    ws = new WebSocket(url);
+    socket = new WebSocket(url);
   } catch (_) {
     definirConexao('OFFLINE');
     return;
   }
+  ws = socket;
 
-  ws.onopen = () => {
-    tentativasWs = 0;
-    definirConexao('AO VIVO');
+  /* o servidor aceita o handshake e só depois valida: "Hello," confirma o login */
+  socket.onmessage = (mensagem) => {
+    const texto = String(mensagem.data).trim();
+    if (!autenticado && texto.startsWith('Hello,')) {
+      autenticado = true;
+      tentativasWs = 0;
+      entrar();
+      definirConexao('AO VIVO');
+      return;
+    }
+    tratarMensagem(texto);
   };
 
-  ws.onmessage = (mensagem) => tratarMensagem(String(mensagem.data).trim());
-
-  ws.onclose = () => {
+  socket.onclose = (e) => {
+    if (ws !== socket) return; /* saída manual ou conexão substituída */
+    if (!autenticado) {
+      const recusado = e.code === 1003 || /credenciais/i.test(e.reason || '');
+      jogador = null;
+      definirConexao('OFFLINE');
+      mostrarLogin(recusado ? 'Jogador ou senha inválidos.' : 'Servidor indisponível. Tente de novo.');
+      return;
+    }
     definirConexao('RECONECTANDO');
     const espera = Math.min(15000, 1000 * Math.pow(2, tentativasWs++));
-    setTimeout(conectar, espera);
+    reconectar = setTimeout(conectar, espera);
   };
 
-  ws.onerror = () => definirConexao('OFFLINE');
+  socket.onerror = () => definirConexao('OFFLINE');
 }
 
+document.getElementById('login-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const userId = document.getElementById('login-user').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  if (!userId || !senha) return;
+  document.getElementById('login-btn').disabled = true;
+  document.getElementById('login-err').textContent = '';
+  definirConexao('CONECTANDO');
+  jogador = { userId, senha };
+  conectar();
+});
+document.getElementById('jogador-tag').addEventListener('click', sair);
+
 function enviarOrdem(lado, ticker, quantidade, preco) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  if (!autenticado || !ws || ws.readyState !== WebSocket.OPEN) return false;
   ws.send(lado + ' ' + ticker + ' ' + quantidade + ' ' + preco.toFixed(2));
   return true;
 }
@@ -1233,7 +1332,7 @@ renderSwatches();
 render();
 renderTape();
 carregarInicial();
-conectar();
+mostrarLogin('');
 </script>
 </body>
 </html>
