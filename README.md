@@ -1,3 +1,12 @@
+# Integrantes
+Diogo Lima de Oliveira
+Hugo Santos da Paixão
+Kevin Teixeira de Araújo Carvalho
+Pedro Henrique Macedo Antunes
+Ysrael de Jesus Sacramento
+
+
+# CruelMarketLTDA
 # CruelMarketLTDA
 Projeto da matéria de sistemas distribuídos UFS, Cruel Market LTDA é uma holding financeira, que visa lucros e crueldade.
 
