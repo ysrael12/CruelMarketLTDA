@@ -138,6 +138,7 @@ a{color:inherit}
 .kpi .s{font-size:12px;color:var(--mute)}
 .kpi .v.acid{color:var(--acid)}
 .kpi .v.down{color:var(--down)}
+.kpi .v.up{color:var(--up)}
 
 /* ── briefing ── */
 .brief{display:flex;flex-wrap:wrap;align-items:stretch;border:3px solid var(--acid);background:var(--panel2)}
@@ -263,6 +264,7 @@ a{color:inherit}
 .qty button:first-child{border-right:2px solid var(--line)}
 .qty button:last-child{border-left:2px solid var(--line)}
 .qty .n{flex:1 1 auto;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.lim-n{flex:1;background:transparent;border:0;color:inherit;font:inherit}
 .limit{padding:10px 12px;border:2px solid var(--line);background:var(--panel2);font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
 .sum{display:flex;flex-direction:column;gap:4px;font-size:13px;font-variant-numeric:tabular-nums}
 .sum div{display:flex;justify-content:space-between;gap:12px}
@@ -484,7 +486,7 @@ const A = [
     desc:'Startup que promete revolucionar computação e comida. O investidor engole.' },
   { t:'AOI',  n:'Advanced Orbital Instruments', cat:'acao', p:231.40, v:-1.3, vol:'642', perfil:'RANDOM_WALK', seed:41, amp:.50, cyc:1, ph:0, icon:'i-stock',
     desc:'Soluções orbitais para o século 22. O preço sobe e desce sem avisar.' },
-  { t:'GAGA', n:'GamesGames',           cat:'acao',  p:0,      v:-100, vol:'0',     perfil:'FALIDO',     seed:53, amp:0,   cyc:1,   ph:0,   falido:true, icon:'i-stock',
+  { t:'GAGA', n:'GamesGames',           cat:'acao',  p:60.00,  v:0,    vol:'0',     perfil:'RANDOM_WALK', seed:53, amp:.5,  cyc:1,   ph:0,   icon:'i-stock',
     desc:'Rede de lojas de games em declínio. Em declínio é um elogio, agora.',
     go:'Game over, literalmente.' },
   { t:'CSFT', n:'Consumer Softproducts', cat:'acao', p:612.75, v:6.4,  vol:'2.077', perfil:'CICLO',      seed:61, amp:.30, cyc:2,   ph:-.6, icon:'i-stock',
@@ -503,13 +505,17 @@ const A = [
     desc:'Peixe raro de águas noturnas. Caro, nervoso e raro.' }
 ];
 
-const SALDO = 2609.40;
-const HOLD  = { CRUS:4, GDHD:6, CIV:120, CSFT:2, GAGA:30 };
+/* carteira do jogador: calculada no front a partir das ordens enviadas e dos [MATCH!] do servidor */
+const SALDO_INICIAL = 10000;
+const ESTOQUE_INICIAL = 10; /* unidades de cada ativo, para haver o que vender antes da primeira negociação */
+let catalogoCarregado = false;
+let carteira = novaCarteira();
+function novaCarteira() { return { saldo: SALDO_INICIAL, pos: {}, ordens: [], negocios: [], seq: 0 }; }
 const N = 90;
 
 const ACCENTS = ['#b6ff2e', '#35f2d0', '#ff5f8f', '#f0a81c'];
 
-const state = { sel:'GDHD', cat:'acao', side:'compra', qty:3, tab:'carteira', view:'mercado', accent:ACCENTS[0] };
+const state = { sel:'GDHD', cat:'acao', side:'compra', qty:3, tab:'carteira', view:'mercado', limit:null, accent:ACCENTS[0] };
 
 /* ───────────────────────── helpers ───────────────────────── */
 const fmtN = (n, d = 2) => n.toLocaleString('pt-BR', { minimumFractionDigits:d, maximumFractionDigits:d });
@@ -619,38 +625,6 @@ function recentTrades(cur, step) {
   return out;
 }
 
-const HOLDINGS = [
-  { t:'CRUS', qty:4,   avg:1180,  now:1247.30, value:4989.20, pl:269.20,  pp:5.7 },
-  { t:'GDHD', qty:6,   avg:410,   now:342.15,  value:2052.90, pl:-407.10, pp:-16.6 },
-  { t:'CSFT', qty:2,   avg:540,   now:612.75,  value:1225.50, pl:145.50,  pp:13.5 },
-  { t:'CIV',  qty:120, avg:2.10,  now:3.42,    value:410.40,  pl:158.40,  pp:62.9 },
-  { t:'GAGA', qty:30,  avg:55,    now:0,       value:0,       pl:-1650,   pp:-100, dead:true }
-];
-
-const ORDERS = [
-  { time:'03:40:11', t:'GDHD', side:'COMPRA', qty:'3',  price:'R$ 340,00', status:'ABERTA',    note:'reserva de R$ 1.020,00' },
-  { time:'03:35:02', t:'CIV',  side:'COMPRA', qty:'50', price:'R$ 3,60',   status:'ABERTA',    note:'reserva de R$ 180,00' },
-  { time:'03:22:47', t:'CRUS', side:'VENDA',  qty:'1',  price:'R$ 1.320,00',status:'ABERTA',    note:'reserva de 1 unidade' },
-  { time:'02:58:30', t:'CSFT', side:'COMPRA', qty:'2',  price:'R$ 540,00', status:'EXECUTADA', note:'casada com ordem de venda' },
-  { time:'02:41:09', t:'GAGA', side:'COMPRA', qty:'10', price:'R$ 58,00',  status:'CANCELADA', note:'ativo faliu' },
-  { time:'01:12:55', t:'BRNY', side:'COMPRA', qty:'2',  price:'R$ 290,00', status:'REJEITADA', note:'saldo insuficiente' }
-];
-
-const FILLS = [
-  { time:'02:58:30', t:'CSFT', side:'COMPRA', qty:2,   price:540,  total:1080 },
-  { time:'02:10:18', t:'CRUS', side:'COMPRA', qty:2,   price:1180, total:2360 },
-  { time:'01:44:03', t:'CIV',  side:'COMPRA', qty:120, price:2.10, total:252 },
-  { time:'01:02:36', t:'GDHD', side:'VENDA',  qty:4,   price:455,  total:1820 }
-];
-
-const RANKING = [
-  { pos:1, name:'JOGADOR_03',      value:'R$ 18.920,10' },
-  { pos:2, name:'NPC_CICLISTA',    value:'R$ 15.334,70' },
-  { pos:3, name:'JOGADOR_11',      value:'R$ 13.002,25' },
-  { pos:4, name:'VOCÊ · JOGADOR_07', value:'R$ 12.487,40', me:true },
-  { pos:5, name:'NPC_ALEATORIO',   value:'R$ 9.871,05' }
-];
-
 const EVENTS = [
   { time:'03:12', kind:'FRENZY',       text:'em CSFT, encerrado.',        color:'var(--up)' },
   { time:'02:41', kind:'FALÊNCIA',     text:'GAGA saiu do mercado.',      color:'var(--down)' },
@@ -725,8 +699,11 @@ function renderMercado() {
       '</div>';
 
   /* boleta */
-  const total = state.qty * cur.p;
-  const holds = HOLD[cur.t] || 0;
+  /* preço limite: segue o mercado até o jogador mexer nos botões */
+  const preco = state.limit != null ? state.limit : cur.p;
+  const total = state.qty * preco;
+  const holds = disponivel(cur.t);
+  const SALDO = saldoLivre();
   let warn = '';
   if (falido) warn = 'Ativo falido. A negociação está encerrada.';
   else if (state.side === 'compra' && total > SALDO) warn = 'Saldo insuficiente para esta ordem.';
@@ -741,38 +718,49 @@ function renderMercado() {
   ].map(([k, v]) => '<div><span class="k2">' + k + '</span><span>' + v + '</span></div>').join('');
 
   /* tabelas inferiores */
-  const holdings = HOLDINGS.map((h) =>
+  const vazio = (msg) => '<tr><td class="l dim" colspan="6">' + msg + '</td></tr>';
+
+  const posicoes = Object.entries(carteira.pos).map(([t, p]) => {
+    const ativo = A.find((x) => x.t === t);
+    const morto = !!(ativo && ativo.falido);
+    const agora = morto || !ativo ? 0 : ativo.p;
+    const valor = agora * p.qty;
+    const pl = valor - p.custo;
+    return { t, qty: p.qty, avg: p.custo / p.qty, now: agora, value: valor, pl, pp: p.custo ? pl / p.custo * 100 : 0, dead: morto };
+  });
+
+  const holdings = posicoes.length ? posicoes.map((h) =>
     '<tr>' +
       '<td class="b" style="color:' + (h.dead ? 'var(--down)' : 'var(--ink)') + '">' +
-        (h.dead ? 'GAGA · GAME OVER' : h.t) + '</td>' +
+        (h.dead ? h.t + ' · GAME OVER' : h.t) + '</td>' +
       '<td>' + fmtN(h.qty, 0) + '</td>' +
       '<td>' + brl(h.avg) + '</td>' +
       '<td>' + (h.dead ? 'R$ 0,00' : brl(h.now)) + '</td>' +
       '<td>' + brl(h.value) + '</td>' +
       '<td class="b" style="color:' + (h.pl >= 0 ? 'var(--up)' : 'var(--down)') + '">' +
         (h.pl >= 0 ? '▲ +' : '▼ −') + brl(Math.abs(h.pl)) + ' (' + pct(h.pp) + ')</td>' +
-    '</tr>').join('');
+    '</tr>').join('') : vazio('Sem posições.');
 
-  const orders = ORDERS.map((o) =>
+  const orders = carteira.ordens.length ? carteira.ordens.map((o) =>
     '<tr>' +
       '<td class="dim">' + o.time + '</td>' +
       '<td class="b">' + o.t + '</td>' +
       '<td style="color:' + (o.side === 'COMPRA' ? 'var(--up)' : 'var(--down)') + '">' + o.side + '</td>' +
       '<td>' + o.qty + '</td>' +
-      '<td>' + o.price + '</td>' +
+      '<td>' + brl(o.preco) + '</td>' +
       '<td class="l"><span class="pill" style="color:' + STCOL[o.status] + '">' + o.status + '</span> ' +
-        '<span class="dim" style="font-size:12px">' + o.note + '</span></td>' +
-    '</tr>').join('');
+        '<span class="dim" style="font-size:12px">' + notaOrdem(o) + '</span></td>' +
+    '</tr>').join('') : vazio('Nenhuma ordem enviada.');
 
-  const fills = FILLS.map((f) =>
+  const fills = carteira.negocios.length ? carteira.negocios.map((f) =>
     '<tr>' +
       '<td class="dim">' + f.time + '</td>' +
       '<td class="b">' + f.t + '</td>' +
       '<td style="color:' + (f.side === 'COMPRA' ? 'var(--up)' : 'var(--down)') + '">' + f.side + '</td>' +
       '<td>' + fmtN(f.qty, 0) + '</td>' +
-      '<td>' + brl(f.price) + '</td>' +
-      '<td>' + brl(f.total) + '</td>' +
-    '</tr>').join('');
+      '<td>' + brl(f.preco) + '</td>' +
+      '<td>' + brl(f.qty * f.preco) + '</td>' +
+    '</tr>').join('') : vazio('Nenhuma negociação executada.');
 
   const tabDefs = [['carteira', 'CARTEIRA'], ['ordens', 'ORDENS'], ['negocios', 'NEGOCIAÇÕES']];
   const tabs = tabDefs.map(([id, lb]) =>
@@ -795,11 +783,13 @@ function renderMercado() {
   };
   const tbl = tableMap[state.tab];
 
-  const ranking = RANKING.map((p) =>
-    '<div class="r' + (p.me ? ' me' : '') + '">' +
-      '<span class="nm4"><span class="ps">' + p.pos + '</span><span>' + p.name + '</span></span>' +
-      '<span>' + p.value + '</span>' +
-    '</div>').join('');
+  const rk = resumoCarteira(posicoes);
+  const ranking =
+    '<div class="r me">' +
+      '<span class="nm4"><span class="ps">1</span><span>VOCÊ · ' + (jogador ? jogador.userId.toUpperCase() : '') + '</span></span>' +
+      '<span>' + brl(rk.patrimonio) + '</span>' +
+    '</div>' +
+    '<div class="note">Ranking entre jogadores ainda não existe no servidor.</div>';
 
   const events = EVENTS.map((e) =>
     '<div class="e"><span class="tm">' + e.time + '</span>' +
@@ -809,13 +799,14 @@ function renderMercado() {
   return '' +
   '<div class="kpis">' +
     '<div class="kpi"><span class="k">Saldo disponível</span><span class="v">' + brl(SALDO) + '</span>' +
-      '<span class="s">Reservado em ordens: R$ 1.200,00</span></div>' +
-    '<div class="kpi"><span class="k">Patrimônio total</span><span class="v acid">R$ 12.487,40</span>' +
+      '<span class="s">Reservado em ordens: ' + brl(rk.reservado) + '</span></div>' +
+    '<div class="kpi"><span class="k">Patrimônio total</span><span class="v acid">' + brl(rk.patrimonio) + '</span>' +
       '<span class="s">Saldo + reservas + posições</span></div>' +
-    '<div class="kpi"><span class="k">Lucro / prejuízo da carteira</span><span class="v down">▼ −R$ 1.484,00</span>' +
-      '<span class="s">−14,6% sobre o custo, com GAGA zerada</span></div>' +
-    '<div class="kpi"><span class="k">Posições</span><span class="v">5 ativos</span>' +
-      '<span class="s">1 falido · 3 ordens abertas</span></div>' +
+    '<div class="kpi"><span class="k">Lucro / prejuízo da carteira</span><span class="v ' + (rk.pl >= 0 ? 'up' : 'down') + '">' +
+      (rk.pl >= 0 ? '▲ +' : '▼ −') + brl(Math.abs(rk.pl)) + '</span>' +
+      '<span class="s">' + pct(rk.pp) + ' sobre o custo das posições</span></div>' +
+    '<div class="kpi"><span class="k">Posições</span><span class="v">' + posicoes.length + ' ativo' + (posicoes.length === 1 ? '' : 's') + '</span>' +
+      '<span class="s">' + rk.falidos + ' falido · ' + rk.abertas + ' ordens abertas</span></div>' +
   '</div>' +
 
   '<div class="brief">' +
@@ -901,7 +892,13 @@ function renderMercado() {
           '</div>' +
           '<div class="field">' +
             '<span class="lb2">PREÇO LIMITE</span>' +
-            '<div class="limit">' + (falido ? 'R$ 0,00' : brl(cur.p)) + '</div>' +
+            '<div class="qty">' +
+              '<button type="button" data-act="lim" data-v="-1" aria-label="Diminuir preço limite">−</button>' +
+              '<button type="button" class="n lim-n" data-act="lim" data-v="0" title="Voltar ao preço de mercado">' +
+                (falido ? 'R$ 0,00' : brl(preco)) + (state.limit != null ? ' ·' : '') + '</button>' +
+              '<button type="button" data-act="lim" data-v="1" aria-label="Aumentar preço limite">+</button>' +
+            '</div>' +
+            '<span class="dim" style="font-size:12px">' + (state.limit != null ? 'fixo · toque no valor para seguir o mercado' : 'seguindo o mercado') + '</span>' +
           '</div>' +
           '<div class="sum">' + sumRows + '</div>' +
           (blocked ? '<div class="warn">▼ ' + warn + '</div>' : '') +
@@ -1057,6 +1054,7 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     const a = A.find((x) => x.t === v);
     state.sel = v;
+    state.limit = null;
     state.qty = a.p < 10 ? 20 : a.p < 100 ? 5 : 3;
     if (state.view !== 'mercado') state.view = 'mercado';
     render();
@@ -1064,17 +1062,125 @@ document.addEventListener('click', (e) => {
   }
   if (act === 'cat')    { state.cat = v; render(); return; }
   if (act === 'side')   { state.side = v; render(); return; }
+  if (act === 'lim') {
+    const cur = A.find((x) => x.t === state.sel);
+    if (v === '0' || !cur) { state.limit = null; render(); return; }
+    const passo = Math.max(0.01, Math.round(cur.p * 0.01 * 100) / 100); /* 1% do preço */
+    const base = state.limit != null ? state.limit : cur.p;
+    state.limit = Math.max(0.01, Math.round((base + Number(v) * passo) * 100) / 100);
+    render();
+    return;
+  }
   if (act === 'qty')    { state.qty = Math.max(1, state.qty + Number(v)); render(); return; }
   if (act === 'tab')    { state.tab = v; render(); return; }
   if (act === 'submit') {
     const cur = A.find((x) => x.t === state.sel);
     const lado = state.side === 'compra' ? 'COMPRA' : 'VENDA';
-    const enviada = enviarOrdem(lado, cur.t, state.qty, cur.p);
+    const preco = state.limit != null ? state.limit : cur.p;
+    const enviada = enviarOrdem(lado, cur.t, state.qty, preco);
+    if (enviada) { registrarOrdem(lado, cur.t, state.qty, preco); render(); }
     flash((enviada ? 'ORDEM ENVIADA · ' : 'SEM CONEXAO · ') + lado + ' ' + state.qty + ' ' + cur.t +
-      ' @ ' + brl(cur.p));
+      ' @ ' + brl(preco));
     return;
   }
 });
+
+/* ─────────────────────── carteira do jogador ─────────────────────── */
+const horaAgora = () => new Date().toLocaleTimeString('pt-BR');
+const chaveCarteira = () => 'cruelmarket:carteira:' + (jogador ? jogador.userId : '');
+
+function salvarCarteira() {
+  if (!jogador) return;
+  try { localStorage.setItem(chaveCarteira(), JSON.stringify(carteira)); } catch (_) { /* sem storage: fica só em memória */ }
+}
+
+function carregarCarteira() {
+  carteira = novaCarteira();
+  try {
+    const salva = JSON.parse(localStorage.getItem(chaveCarteira()) || 'null');
+    if (salva && typeof salva.saldo === 'number' && salva.pos && Array.isArray(salva.ordens) && Array.isArray(salva.negocios)) {
+      carteira = Object.assign(novaCarteira(), salva);
+    }
+  } catch (_) { /* storage indisponível ou corrompido */ }
+}
+
+const ordensAbertas = () => carteira.ordens.filter((o) => o.status === 'ABERTA');
+const reservadoEmCompras = () =>
+  ordensAbertas().filter((o) => o.side === 'COMPRA').reduce((soma, o) => soma + o.restante * o.preco, 0);
+const saldoLivre = () => carteira.saldo - reservadoEmCompras();
+const reservadoEmVendas = (t) =>
+  ordensAbertas().filter((o) => o.side === 'VENDA' && o.t === t).reduce((soma, o) => soma + o.restante, 0);
+const disponivel = (t) => ((carteira.pos[t] && carteira.pos[t].qty) || 0) - reservadoEmVendas(t);
+
+function notaOrdem(o) {
+  if (o.status === 'EXECUTADA') return 'casada com ordem de outro jogador';
+  if (o.restante < o.qty) return 'faltam ' + o.restante + ' un.';
+  return o.side === 'COMPRA' ? 'reserva de ' + brl(o.restante * o.preco) : 'reserva de ' + o.restante + ' unidade(s)';
+}
+
+function resumoCarteira(posicoes) {
+  const valor = posicoes.reduce((soma, p) => soma + p.value, 0);
+  const custo = posicoes.reduce((soma, p) => soma + carteira.pos[p.t].custo, 0);
+  const pl = valor - custo;
+  return {
+    reservado: reservadoEmCompras(),
+    patrimonio: carteira.saldo + valor,
+    pl,
+    pp: custo ? pl / custo * 100 : 0,
+    falidos: posicoes.filter((p) => p.dead).length,
+    abertas: ordensAbertas().length
+  };
+}
+
+/* sem posição não há venda, e sem venda não há compra casada: cada jogador começa com um lote de cada ativo */
+function semearCarteira() {
+  if (!jogador || !catalogoCarregado || carteira.semeada) return;
+  for (const a of A) {
+    if (a.falido || !(a.p > 0) || carteira.pos[a.t]) continue;
+    carteira.pos[a.t] = { qty: ESTOQUE_INICIAL, custo: ESTOQUE_INICIAL * a.p };
+  }
+  carteira.semeada = true;
+  salvarCarteira();
+}
+
+function registrarOrdem(lado, ticker, qtd, preco) {
+  carteira.ordens.unshift({ id: ++carteira.seq, time: horaAgora(), t: ticker, side: lado, qty: qtd, restante: qtd, preco, status: 'ABERTA' });
+  salvarCarteira();
+}
+
+/* "[MATCH!] COMPRA EXECUTADA: 3x CIV a R$ 3.08 (Vendedor: x)" confirma uma execução da nossa ordem */
+function aplicarExecucao(texto) {
+  const m = /^\[MATCH!\] (COMPRA|VENDA) EXECUTADA: (\d+)x (\S+) a R\$ ([\d.]+)/.exec(texto);
+  if (!m) return;
+  const lado = m[1], qtd = Number(m[2]), t = m[3], preco = Number(m[4]);
+
+  let falta = qtd;
+  for (const o of carteira.ordens.slice().reverse()) {
+    if (!falta) break;
+    if (o.status !== 'ABERTA' || o.side !== lado || o.t !== t) continue;
+    const x = Math.min(o.restante, falta);
+    o.restante -= x;
+    falta -= x;
+    if (o.restante === 0) o.status = 'EXECUTADA';
+  }
+
+  const pos = carteira.pos[t] || (carteira.pos[t] = { qty: 0, custo: 0 });
+  const valor = qtd * preco;
+  if (lado === 'COMPRA') {
+    carteira.saldo -= valor;
+    pos.qty += qtd;
+    pos.custo += valor;
+  } else {
+    const medio = pos.qty ? pos.custo / pos.qty : 0;
+    carteira.saldo += valor;
+    pos.qty -= qtd;
+    pos.custo -= medio * qtd;
+    if (pos.qty <= 0) delete carteira.pos[t];
+  }
+  carteira.negocios.unshift({ time: horaAgora(), t, side: lado, qty: qtd, preco });
+  salvarCarteira();
+  agendarRender();
+}
 
 /* relógio da sessão; a sequência vem do market-data (RNF02) */
 let clockSec = 3 * 60 + 42;
@@ -1144,6 +1250,7 @@ function aplicarCatalogo(lista) {
     const ativo = garantirAtivo(resumo.ticker, resumo.categoria, resumo.perfil);
     ativo.p = resumo.ultimoPreco;
     ativo.v = resumo.variacaoPercentual;
+    ativo.falido = resumo.variacaoPercentual === -100;
     ativo.vol = fmtN(resumo.volume, 0);
     ativo.ref = resumo.variacaoPercentual === -100
       ? resumo.ultimoPreco
@@ -1155,6 +1262,8 @@ function aplicarCatalogo(lista) {
   }
 
   if (!A.some((x) => x.t === state.sel) && A.length > 0) state.sel = A[0].t;
+  catalogoCarregado = true;
+  semearCarteira();
   agendarRender();
 }
 
@@ -1190,7 +1299,8 @@ function aplicarEventos(lista) {
     EVENTS.push({
       time: inicio ? String(inicio.getHours()).padStart(2, '0') + ':' + String(inicio.getMinutes()).padStart(2, '0') : '--:--',
       kind: evento.tipo === 'FALENCIA_FATAL' ? 'FALÊNCIA' : evento.tipo,
-      text: (evento.ticker ? 'em ' + evento.ticker : 'no mercado') + ' (agendado)',
+      text: (evento.ticker ? 'em ' + evento.ticker : 'no mercado') +
+        (evento.fim && new Date(evento.fim) < new Date() ? ', encerrado.' : ' (agendado)'),
       color: cor
     });
   }
@@ -1220,7 +1330,10 @@ function tratarMensagem(texto) {
     } catch (_) { /* mensagem de outro serviço */ }
     return;
   }
-  if (texto.startsWith('[MATCH!]')) flash(texto.replace('[MATCH!] ', ''));
+  if (texto.startsWith('[MATCH!]')) {
+    flash(texto.replace('[MATCH!] ', ''));
+    aplicarExecucao(texto);
+  }
 }
 
 function mostrarLogin(msg) {
@@ -1234,6 +1347,9 @@ function mostrarLogin(msg) {
 }
 
 function entrar() {
+  carregarCarteira();
+  semearCarteira();
+  render();
   document.getElementById('login').hidden = true;
   document.getElementById('jogador-tag').hidden = false;
   document.getElementById('jogador-tag').textContent = jogador.userId.toUpperCase() + ' · SAIR';
@@ -1242,6 +1358,7 @@ function entrar() {
 function sair() {
   const antigo = ws;
   jogador = null;
+  carteira = novaCarteira();
   autenticado = false;
   clearTimeout(reconectar);
   ws = null;

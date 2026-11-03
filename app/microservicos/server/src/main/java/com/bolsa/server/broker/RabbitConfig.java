@@ -25,6 +25,12 @@ public class RabbitConfig {
         return new TopicExchange(Nomes.EXCHANGE_EVENTOS, true, false);
     }
 
+    /** eventos de sessão (login/logout) publicados pelo SessionHandler; sem a declaração o broker responde 404 */
+    @Bean
+    TopicExchange sessaoExchange() {
+        return new TopicExchange("sessao.exchange", true, false);
+    }
+
     @Bean
     FanoutExchange pubsubExchange() {
         return new FanoutExchange(Nomes.EXCHANGE_PUBSUB, true, false);
