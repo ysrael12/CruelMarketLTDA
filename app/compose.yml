@@ -65,7 +65,10 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      - SPRING_RABBITMQ_HOST=rabbitmq
+      DB_URL: postgresql://postgres:123@bd-order-service:5432/order_service
+      DB_USER: user
+      DB_PASSWORD: 123
+      SPRING_RABBITMQ_HOST: rabbitmq
 
   market-data:
     build: "./microservicos/market data"
@@ -79,9 +82,12 @@ services:
       DB_PATH: /app/data/market.db
       TICK_MS: 1000
       SEED_MERCADO: ""
+      DB_URL: postgresql://postgres:123@bd-market-data:5432/market_data
+      DB_USER: user
+      DB_PASSWORD: 123
     volumes:
-      - market-data:/app/data
-      - "./microservicos/market data/config:/app/config:ro"
+      - market-data:/app/data #remover
+      - "./microservicos/market data/config:/app/config:ro" #remover
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s
@@ -94,9 +100,45 @@ services:
     networks:
       - mainServer
 
+  bd-market-data:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: market_data
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123
+    volumes:
+      - postgres_market_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  bd-order-service:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: order_service
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123
+    volumes:
+      - postgres_order_service:/var/lib/postgresql
+    ports:
+      - "5433:5432"
+  
+  bd-user-data:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: user_data
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 123
+    volumes:
+      - postgres_user_data:/var/lib/postgresql
+    ports:
+      - "5434:5432"
+
 networks:
   mainServer:
     driver: bridge
 
 volumes:
-  market-data:
+  market-data: #remover
+  postgres_market_data:
+  postgres_order_service:
+  postgres_user_data:
