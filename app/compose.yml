@@ -100,6 +100,10 @@ services:
     networks:
       - mainServer
 
+  # quando criar o container de "user-data":
+  # environment:
+  #   DB_URL: postgresql://postgres:123@bd-market-data:5432/user_data
+  
   bd-market-data:
     image: postgres:18
     environment:
