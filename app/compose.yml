@@ -29,6 +29,34 @@ services:
     networks:
       - mainServer
 
+  gateway-1:
+    build: ./microservicos/gateway
+    expose:
+      - "8082"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: cruel
+      SPRING_RABBITMQ_PASSWORD: cruel123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - mainServer
+  
+  gateway-2:
+    build: ./microservicos/gateway
+    expose:
+      - "8082"
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: cruel
+      SPRING_RABBITMQ_PASSWORD: cruel123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - mainServer
+        
   websocket-1:
     build: ./microservicos/websocket
     expose:
