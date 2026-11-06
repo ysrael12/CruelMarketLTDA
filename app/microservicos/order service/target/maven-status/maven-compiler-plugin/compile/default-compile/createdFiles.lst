@@ -1,0 +1,15 @@
+com\bolsa\server\ServerApplication.class
+com\bolsa\server\HistoricoNegociacoes$RegistroNegociacao.class
+com\bolsa\server\broker\Nomes.class
+com\bolsa\server\broker\Sonda.class
+com\bolsa\server\broker\EventoOrdem.class
+com\bolsa\server\broker\Particoes.class
+com\bolsa\server\broker\PublicadorEventos.class
+com\bolsa\server\broker\RabbitConfig.class
+com\bolsa\server\broker\EventoTradeMercado.class
+com\bolsa\server\WebSocketConfig.class
+com\bolsa\server\OrderService$Ordem.class
+com\bolsa\server\HistoricoNegociacoes.class
+com\bolsa\server\broker\PonteTrades.class
+com\bolsa\server\SessionHandler.class
+com\bolsa\server\OrderService.class

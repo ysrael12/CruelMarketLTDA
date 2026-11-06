@@ -23,14 +23,14 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./front:/usr/share/nginx/html:ro
     depends_on:
-      - server-1
-      - server-2
+      - websocket-1
+      - websocket-2
       - market-data
     networks:
       - mainServer
 
-  server-1:
-    build: ./microservicos/server
+  websocket-1:
+    build: ./microservicos/websocket
     expose:
       - "8082"
     environment:
@@ -43,8 +43,8 @@ services:
     networks:
       - mainServer
 
-  server-2:
-    build: ./microservicos/server
+  websocket-2:
+    build: ./microservicos/websocket
     expose:
       - "8082"
     environment:
