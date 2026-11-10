@@ -36,44 +36,30 @@ public class TokenService {
     }
 
     public DadosToken validarToken(String token) {
-        if (token == null || token.isBlank() || !token.contains(".")) {
-            return null;
-        }
+        if (token == null || token.isBlank() || !token.contains(".")) return null;
 
         String[] partes = token.split("\\.");
-        if (partes.length != 2) {
-            return null;
-        }
+        if (partes.length != 2) return null;
 
         String payloadBase64 = partes[0];
         String assinaturaRecebida = partes[1];
         String assinaturaCalculada = assinarHmac(payloadBase64);
 
-        boolean assinaturaValida = MessageDigest.isEqual(
+        if (!MessageDigest.isEqual(
                 assinaturaRecebida.getBytes(StandardCharsets.UTF_8),
-                assinaturaCalculada.getBytes(StandardCharsets.UTF_8)
-        );
-
-        if (!assinaturaValida) {
+                assinaturaCalculada.getBytes(StandardCharsets.UTF_8))) {
             return null;
         }
 
         try {
             String payload = new String(Base64.getUrlDecoder().decode(payloadBase64), StandardCharsets.UTF_8);
             String[] campos = payload.split(":");
-            if (campos.length != 3) {
-                return null;
-            }
+            if (campos.length != 3) return null;
 
-            String userId = campos[0];
-            String username = campos[1];
             long expiraEm = Long.parseLong(campos[2]);
+            if (Instant.now().getEpochSecond() > expiraEm) return null;
 
-            if (Instant.now().getEpochSecond() > expiraEm) {
-                return null;
-            }
-
-            return new DadosToken(userId, username, expiraEm);
+            return new DadosToken(campos[0], campos[1], expiraEm);
         } catch (Exception e) {
             return null;
         }
