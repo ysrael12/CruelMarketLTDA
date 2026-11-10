@@ -1,0 +1,8 @@
+com/bolsa/server/Usuario.class
+com/bolsa/server/AuthController$CredenciaisDTO.class
+com/bolsa/server/Usuario$StatusConta.class
+com/bolsa/server/AuthApplication.class
+com/bolsa/server/UsuarioRepository.class
+com/bolsa/server/AuthController.class
+com/bolsa/server/TokenService.class
+com/bolsa/server/TokenService$DadosToken.class
