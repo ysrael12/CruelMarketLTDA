@@ -13,6 +13,11 @@ public class AuthApplication {
     }
 
     @Bean
+    public Queue usuariosRpcQueue() {
+        return new Queue("usuarios.rpc.fila", true);
+    }
+
+    @Bean
     public FanoutExchange usuariosExchange() {
         return new FanoutExchange("usuarios.exchange", true, false);
     }
