@@ -1,0 +1,62 @@
+package com.bolsa.server;
+
+import org.springframework.stereotype.Service;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.Base64;
+
+@Service
+public class TokenService {
+
+    private static final String SECRET_KEY = System.getenv().getOrDefault(
+        "JWT_SECRET", "ChaveSecretaHmacCruelMarketLTDA2026_SegurancaTotal!"
+    );
+
+    public record DadosToken(String userId, String username, long expiraEm) {}
+
+    public DadosToken validarToken(String token) {
+        if (token == null || token.isBlank() || !token.contains(".")) return null;
+
+        String[] partes = token.split("\\.");
+        if (partes.length != 2) return null;
+
+        String payloadBase64 = partes[0];
+        String assinaturaRecebida = partes[1];
+        String assinaturaCalculada = assinarHmac(payloadBase64);
+
+        if (!MessageDigest.isEqual(
+                assinaturaRecebida.getBytes(StandardCharsets.UTF_8),
+                assinaturaCalculada.getBytes(StandardCharsets.UTF_8))) {
+            return null;
+        }
+
+        try {
+            String payload = new String(Base64.getUrlDecoder().decode(payloadBase64), StandardCharsets.UTF_8);
+            String[] campos = payload.split(":");
+            if (campos.length != 3) return null;
+
+            long expiraEm = Long.parseLong(campos[2]);
+            if (Instant.now().getEpochSecond() > expiraEm) return null;
+
+            return new DadosToken(campos[0], campos[1], expiraEm);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String assinarHmac(String dados) {
+        try {
+            Mac hmac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(SECRET_KEY.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            hmac.init(secretKey);
+            byte[] hash = hmac.doFinal(dados.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (Exception e) {
+            throw new IllegalStateException("Falha ao verificar assinatura do token", e);
+        }
+    }
+}
