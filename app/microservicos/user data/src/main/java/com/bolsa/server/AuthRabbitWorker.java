@@ -16,9 +16,6 @@ public class AuthRabbitWorker {
     private UsuarioRepository usuarioRepository;
 
     @Autowired
-    private TokenService tokenService;
-
-    @Autowired
     private RabbitTemplate rabbitTemplate;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -33,7 +30,7 @@ public class AuthRabbitWorker {
         }
     }
 
-    @RabbitListener(queues = "auth.rpc.fila")
+    @RabbitListener(queues = "usuarios.rpc.fila")
     public String processarComandoAuth(String mensagem) {
         try {
             String[] partes = mensagem.split(";", 3);
@@ -44,47 +41,49 @@ public class AuthRabbitWorker {
                     String username = partes[1];
                     String senha = partes[2];
                     if (usuarioRepository.existsByUsername(username)) {
-                        return "409:{\"erro\":\"Usuario ja cadastrado\"}";
+                        return "ERRO;409;Usuario ja cadastrado";
                     }
                     Usuario novo = new Usuario(username, passwordEncoder.encode(senha));
                     usuarioRepository.save(novo);
                     rabbitTemplate.convertAndSend("usuarios.exchange", "", "CADASTRADO:" + username);
-                    String token = tokenService.gerarToken(novo);
-                    return String.format("201:{\"id\":\"%s\",\"username\":\"%s\",\"token\":\"%s\"}",
-                            novo.getId(), novo.getUsername(), token);
+                    return "CRIADO;" + novo.getId() + ";" + novo.getUsername();
                 }
                 case "LOGIN" -> {
                     String username = partes[1];
                     String senha = partes[2];
                     Optional<Usuario> opt = usuarioRepository.findByUsername(username);
                     if (opt.isEmpty() || !passwordEncoder.matches(senha, opt.get().getSenhaHash())) {
-                        return "401:{\"erro\":\"Credenciais invalidas\"}";
+                        return "ERRO;401;Credenciais invalidas";
                     }
-                    Usuario u = opt.get();
-                    String token = tokenService.gerarToken(u);
-                    return String.format("200:{\"id\":\"%s\",\"username\":\"%s\",\"token\":\"%s\"}",
-                            u.getId(), u.getUsername(), token);
+                    Usuario usuario = opt.get();
+                    if (usuario.getStatus() != Usuario.StatusConta.ATIVA) {
+                        return "ERRO;401;Conta bloqueada";
+                    }
+                    return "OK;" + usuario.getId() + ";" + usuario.getUsername();
                 }
                 case "VERIFICAR" -> {
                     String userId = partes[1];
                     boolean ativo = usuarioRepository.findById(userId)
                             .map(u -> u.getStatus() == Usuario.StatusConta.ATIVA)
                             .orElse(false);
-                    return ativo ? "200:ATIVO" : "401:INATIVO";
+                    return ativo ? "true" : "false";
                 }
                 case "DELETAR" -> {
                     String userId = partes[1];
                     String username = partes[2];
+                    if (!usuarioRepository.existsById(userId)) {
+                        return "ERRO;404;Usuario nao encontrado";
+                    }
                     usuarioRepository.deleteById(userId);
                     rabbitTemplate.convertAndSend("usuarios.exchange", "", "DELETADO:" + username);
-                    return String.format("200:{\"mensagem\":\"Conta removida com sucesso\",\"username\":\"%s\"}", username);
+                    return "DELETADO;" + username;
                 }
                 default -> {
-                    return "400:{\"erro\":\"Comando desconhecido\"}";
+                    return "ERRO;400;Acao desconhecida";
                 }
             }
         } catch (Exception e) {
-            return "500:{\"erro\":\"" + e.getMessage() + "\"}";
+            return "ERRO;500;" + e.getMessage();
         }
     }
 }
