@@ -3,7 +3,6 @@ package com.bolsa.server;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,32 +20,30 @@ public class GatewayAuthController {
 
     public record CredenciaisDTO(String username, String senha) {}
 
-    @PostMapping(value = "/cadastrar", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> cadastrar(@RequestBody CredenciaisDTO dto) {
-        if (dto == null || dto.username() == null || dto.senha() == null) {
-            return ResponseEntity.badRequest().body("{\"erro\":\"Username e senha obrigatorios\"}");
+    @PostMapping("/cadastrar")
+    public ResponseEntity<?> cadastrar(@RequestBody CredenciaisDTO dto) {
+        if (dto == null || dto.username() == null || dto.username().isBlank()
+                || dto.senha() == null || dto.senha().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("erro", "Username e senha obrigatorios"));
         }
         String comando = "CADASTRAR;" + dto.username().trim() + ";" + dto.senha();
-        return enviarComandoRpcParaUserData(comando);
+        return processarLoginOuCadastroViaRabbit(comando);
     }
 
-    @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> login(@RequestBody CredenciaisDTO dto) {
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody CredenciaisDTO dto) {
         if (dto == null || dto.username() == null || dto.senha() == null) {
-            return ResponseEntity.badRequest().body("{\"erro\":\"Credenciais ausentes\"}");
+            return ResponseEntity.badRequest().body(Map.of("erro", "Credenciais ausentes"));
         }
         String comando = "LOGIN;" + dto.username().trim() + ";" + dto.senha();
-        return enviarComandoRpcParaUserData(comando);
+        return processarLoginOuCadastroViaRabbit(comando);
     }
+
 
     @GetMapping("/validar")
     public ResponseEntity<?> validar(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        TokenService.DadosToken dados = extrairDadosDoHeader(authHeader);
+        TokenService.DadosToken dados = extrairTokenNoGateway(authHeader);
         if (dados == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valido", false));
-        }
-        Object resp = rabbitTemplate.convertSendAndReceive("auth.rpc.fila", "VERIFICAR;" + dados.userId());
-        if (resp == null || !resp.toString().startsWith("200:")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valido", false));
         }
         return ResponseEntity.ok(Map.of(
@@ -56,30 +53,61 @@ public class GatewayAuthController {
         ));
     }
 
-    @DeleteMapping(value = "/me", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> deletarPropriaConta(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        TokenService.DadosToken dados = extrairDadosDoHeader(authHeader);
+
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deletarPropriaConta(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        TokenService.DadosToken dados = extrairTokenNoGateway(authHeader);
         if (dados == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("{\"erro\":\"Token invalido ou expirado\"}");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("erro", "Token invalido ou expirado"));
         }
-        String comando = "DELETAR;" + dados.userId() + ";" + dados.username();
-        return enviarComandoRpcParaUserData(comando);
+
+        Object respObj = rabbitTemplate.convertSendAndReceive("usuarios.rpc.fila",
+                "DELETAR;" + dados.userId() + ";" + dados.username());
+
+        if (respObj == null) {
+            return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(Map.of("erro", "user-data nao respondeu"));
+        }
+
+        String resp = respObj.toString();
+        if (resp.startsWith("DELETADO;")) {
+            return ResponseEntity.ok(Map.of(
+                    "mensagem", "Conta removida com sucesso",
+                    "username", dados.username()
+            ));
+        }
+
+        String[] erro = resp.split(";", 3);
+        return ResponseEntity.status(Integer.parseInt(erro[1])).body(Map.of("erro", erro[2]));
     }
 
-    private ResponseEntity<String> enviarComandoRpcParaUserData(String comando) {
-        Object respostaObj = rabbitTemplate.convertSendAndReceive("auth.rpc.fila", comando);
-        if (respostaObj == null) {
+    private ResponseEntity<?> processarLoginOuCadastroViaRabbit(String comando) {
+        Object respObj = rabbitTemplate.convertSendAndReceive("usuarios.rpc.fila", comando);
+        if (respObj == null) {
             return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT)
-                    .body("{\"erro\":\"Microsservico user-data nao respondeu no RabbitMQ\"}");
+                    .body(Map.of("erro", "O servico user-data nao respondeu pelo RabbitMQ"));
         }
-        String resposta = respostaObj.toString();
-        String[] partes = resposta.split(":", 2);
-        int statusHttp = Integer.parseInt(partes[0]);
-        String jsonBody = (partes.length > 1) ? partes[1] : "{}";
-        return ResponseEntity.status(statusHttp).body(jsonBody);
+
+        String resp = respObj.toString();
+        String[] partes = resp.split(";", 3);
+
+        if (partes[0].equals("CRIADO") || partes[0].equals("OK")) {
+            String userId = partes[1];
+            String username = partes[2];
+            String token = tokenService.gerarToken(userId, username);
+            HttpStatus status = partes[0].equals("CRIADO") ? HttpStatus.CREATED : HttpStatus.OK;
+
+            return ResponseEntity.status(status).body(Map.of(
+                    "id", userId,
+                    "username", username,
+                    "token", token
+            ));
+        }
+
+        int statusErro = Integer.parseInt(partes[1]);
+        return ResponseEntity.status(statusErro).body(Map.of("erro", partes[2]));
     }
 
-    private TokenService.DadosToken extrairDadosDoHeader(String authHeader) {
+    private TokenService.DadosToken extrairTokenNoGateway(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         return tokenService.validarToken(authHeader.substring(7).trim());
     }
