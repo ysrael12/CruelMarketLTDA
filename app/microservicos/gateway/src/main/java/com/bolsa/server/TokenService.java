@@ -16,7 +16,20 @@ public class TokenService {
         "JWT_SECRET", "ChaveSecretaHmacCruelMarketLTDA2026_SegurancaTotal!"
     );
 
+    private static final long TEMPO_EXPIRACAO_SEGUNDOS = 86400; // 24h
+
     public record DadosToken(String userId, String username, long expiraEm) {}
+
+    public String gerarToken(String userId, String username) {
+        long expiraEm = Instant.now().getEpochSecond() + TEMPO_EXPIRACAO_SEGUNDOS;
+        String payload = String.join(":", userId, username, String.valueOf(expiraEm));
+
+        String payloadBase64 = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        String assinatura = assinarHmac(payloadBase64);
+
+        return payloadBase64 + "." + assinatura;
+    }
 
     public DadosToken validarToken(String token) {
         if (token == null || token.isBlank() || !token.contains(".")) return null;
@@ -56,7 +69,7 @@ public class TokenService {
             byte[] hash = hmac.doFinal(dados.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
         } catch (Exception e) {
-            throw new IllegalStateException("Falha ao verificar assinatura do token", e);
+            throw new IllegalStateException("Falha ao assinar/verificar token", e);
         }
     }
 }
