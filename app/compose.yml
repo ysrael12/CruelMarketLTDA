@@ -42,7 +42,7 @@ services:
         condition: service_healthy
     networks:
       - mainServer
-  
+
   gateway-2:
     build: ./microservicos/gateway
     expose:
@@ -56,7 +56,7 @@ services:
         condition: service_healthy
     networks:
       - mainServer
-        
+
   websocket-1:
     build: ./microservicos/websocket
     expose:
@@ -86,16 +86,16 @@ services:
       - mainServer
 
   order:
-    build: ./microservicos/order service
+    build: "./microservicos/order service"
     networks:
       - mainServer
     depends_on:
       rabbitmq:
         condition: service_healthy
     environment:
-      DB_URL: postgresql://postgres:123@bd-order-service:5432/order_service
+      DB_URL: postgresql://user:123@bd-order-service:5432/order_service
       DB_USER: user
-      DB_PASSWORD: 123
+      DB_PASSWORD: "123"
       SPRING_RABBITMQ_HOST: rabbitmq
 
   market-data:
@@ -110,12 +110,12 @@ services:
       DB_PATH: /app/data/market.db
       TICK_MS: 1000
       SEED_MERCADO: ""
-      DB_URL: postgresql://postgres:123@bd-market-data:5432/market_data
+      DB_URL: postgresql://user:123@bd-market-data:5432/market_data
       DB_USER: user
-      DB_PASSWORD: 123
+      DB_PASSWORD: "123"
     volumes:
-      - market-data:/app/data #remover
-      - "./microservicos/market data/config:/app/config:ro" #remover
+      - market-data:/app/data
+      - "./microservicos/market data/config:/app/config:ro"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s
@@ -128,49 +128,73 @@ services:
     networks:
       - mainServer
 
-  # quando criar o container de "user-data":
-  # environment:
-  #   DB_URL: postgresql://postgres:123@bd-market-data:5432/user_data
-  
+  user-data:
+    build: "./microservicos/user data"
+    container_name: user-data
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://bd-user-data:5432/user_data
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: "123"
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: cruel
+      SPRING_RABBITMQ_PASSWORD: cruel123
+    depends_on:
+      bd-user-data:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - mainServer
+
   bd-market-data:
     image: postgres:18
     environment:
       POSTGRES_DB: market_data
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: 123
+      POSTGRES_PASSWORD: "123"
     volumes:
       - postgres_market_data:/var/lib/postgresql
     ports:
       - "5432:5432"
+    networks:
+      - mainServer
 
   bd-order-service:
     image: postgres:18
     environment:
       POSTGRES_DB: order_service
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: 123
+      POSTGRES_PASSWORD: "123"
     volumes:
       - postgres_order_service:/var/lib/postgresql
     ports:
       - "5433:5432"
-  
+    networks:
+      - mainServer
+
   bd-user-data:
     image: postgres:18
     environment:
       POSTGRES_DB: user_data
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: 123
+      POSTGRES_PASSWORD: "123"
     volumes:
       - postgres_user_data:/var/lib/postgresql
     ports:
       - "5434:5432"
+    networks:
+      - mainServer
 
 networks:
   mainServer:
     driver: bridge
 
 volumes:
-  market-data: #remover
+  market-data:
   postgres_market_data:
   postgres_order_service:
   postgres_user_data:
