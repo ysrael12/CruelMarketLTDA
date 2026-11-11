@@ -2,7 +2,9 @@ package com.bolsa.server;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -33,6 +35,29 @@ public class RabbitConfig{
     public static final String EXCHANGE = "api.exchange";
     public static final String FILA_MD = "q.mercado";
     public static final String ROUTING_KEY_MD = "md.request";
+    public static final String FILA_PRECOS_GATEWAY = "q.gateway.price.updated";
+
+    @Bean
+    public TopicExchange exchangeEventos() {
+        return new TopicExchange(EXCHANGE_EVENTOS, true, false);
+    }
+
+    @Bean
+    public FanoutExchange exchangePubsub() {
+        return new FanoutExchange(EXCHANGE_PUBSUB, true, false);
+    }
+
+    @Bean
+    public Queue filaPrecosGateway() {
+        return new Queue(FILA_PRECOS_GATEWAY, true);
+    }
+
+    @Bean
+    public Binding bindingPrecosGateway(Queue filaPrecosGateway, TopicExchange exchangeEventos) {
+        return BindingBuilder.bind(filaPrecosGateway)
+                .to(exchangeEventos)
+                .with(PRICE_UPDATED + ".*.*");
+    }
 
     @Bean 
     public DirectExchange exchange(){

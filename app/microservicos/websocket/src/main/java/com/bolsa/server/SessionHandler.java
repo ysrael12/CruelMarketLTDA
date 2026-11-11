@@ -14,9 +14,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,29 +32,13 @@ public class SessionHandler extends TextWebSocketHandler {
         return (name != null) ? name : "null";
     }
 
-    private static final Map<String, String> JOGADORES_AUTORIZADOS = Map.of(
-        "jogador1", "senha123",
-        "jogador2", "abc456"
-    );
-
-    private boolean validarCredenciais(String userId, String senha) {
-        if (userId == null || senha == null) return false;
-        String senhaCorreta = JOGADORES_AUTORIZADOS.get(userId);
-        if (senhaCorreta == null) return false;
-        return MessageDigest.isEqual(
-            senha.getBytes(StandardCharsets.UTF_8),
-            senhaCorreta.getBytes(StandardCharsets.UTF_8)
-        );
-    }
-
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String userId = extrairQuery(session, "userId");
-        String senha = extrairQuery(session, "senha");
+        String userId = session.getHandshakeHeaders().getFirst("X-Authenticated-User");
 
-        if (!validarCredenciais(userId, senha)) {
-            System.out.println("[" + hostname + "] : Autenticacao falhou para: " + userId);
-            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Credenciais invalidas"));
+        if (userId == null || userId.isBlank()) {
+            System.out.println("[" + hostname + "] : conexão recusada sem identidade autenticada");
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Identidade não autenticada"));
             return;
         }
 
@@ -118,13 +100,8 @@ public class SessionHandler extends TextWebSocketHandler {
         }
     }
 
-    // Recebe o preço publicado pelo market-data e faz push para os jogadores conectados.
-    // Fila anônima e exclusiva: cada instância recebe uma cópia (a q.gateway é consumida pela Sonda).
-    @RabbitListener(bindings = @QueueBinding(
-        value = @Queue(value = "", durable = "false", exclusive = "true", autoDelete = "true"),
-        exchange = @Exchange(value = "cruel.eventos", type = ExchangeTypes.TOPIC),
-        key = "price.updated.*.*"
-    ))
+    // Recebe preços encaminhados pelo gateway via fanout; cada instância tem sua própria fila.
+    @RabbitListener(queues = "#{pubsubQueue.name}")
     public void notificarPrecoAosJogadores(Message msg) {
         try {
             String json = new String(msg.getBody(), StandardCharsets.UTF_8);
@@ -153,13 +130,4 @@ public class SessionHandler extends TextWebSocketHandler {
         System.out.println("[" + hostname + "] Desconectado: " + userId);
     }
 
-    private String extrairQuery(WebSocketSession session, String chave) {
-        URI uri = session.getUri();
-        if (uri == null || uri.getQuery() == null) return null;
-        for (String p : uri.getQuery().split("&")) {
-            String[] kv = p.split("=");
-            if (kv.length == 2 && kv[0].equals(chave)) return kv[1];
-        }
-        return null;
-    }
 }

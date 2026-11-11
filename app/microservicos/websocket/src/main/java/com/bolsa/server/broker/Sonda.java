@@ -43,10 +43,6 @@ public class Sonda implements ApplicationRunner {
         publicador.publicarParaInstancias(e);
     }
 
-    //cada instancia recebe copia
-    @RabbitListener(queues = "#{pubsubQueue.name}")
-    public void pubsub(EventoOrdem e) { log("pubsub/instancia", e); }
-
     private void log(String onde, EventoOrdem e) {
         System.out.println("[" + host + "] [sonda " + onde + "] " + e.evento() + " ordem=" + e.ordemId() + " ativo=" + e.ativo());
     }
