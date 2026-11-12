@@ -382,6 +382,8 @@ a{color:inherit}
 }
 .login input:focus{outline:none;border-color:var(--acid)}
 .login .err{min-height:20px;font-size:13px;color:var(--down)}
+.login .auth-switch{padding:4px;border:0;background:transparent;color:var(--acid);font:inherit;font-size:13px;text-decoration:underline}
+.login .auth-switch:hover{color:var(--flesh)}
 .tag.sair{border:0;font:inherit;font-family:var(--pix);font-weight:700;font-size:12px;letter-spacing:.06em;cursor:pointer}
 .tag.sair:hover{background:var(--acid)}
 </style>
@@ -421,18 +423,23 @@ a{color:inherit}
   <div class="panel hot">
     <div class="ph rot">ACESSO AO PREGÃO <small>CRUELMARKET</small></div>
     <form id="login-form" autocomplete="off">
-      <h2>ENTRAR</h2>
-      <p>Identifique-se para operar. A carne é um recurso.</p>
+      <h2 id="auth-title">ENTRAR</h2>
+      <p id="auth-description">Identifique-se para operar. A carne é um recurso.</p>
       <div class="field">
         <label class="lb2" for="login-user">JOGADOR</label>
-        <input id="login-user" name="userId" required autofocus spellcheck="false">
+        <input id="login-user" name="userId" required autofocus spellcheck="false" autocomplete="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9_.-]+" title="Use letras, números, ponto, hífen ou sublinhado.">
       </div>
       <div class="field">
         <label class="lb2" for="login-senha">SENHA</label>
-        <input id="login-senha" name="senha" type="password" required>
+        <input id="login-senha" name="senha" type="password" required autocomplete="current-password">
       </div>
-      <div class="err" id="login-err" role="alert"></div>
+      <div class="field" id="confirm-field" hidden>
+        <label class="lb2" for="login-confirma">CONFIRMAR SENHA</label>
+        <input id="login-confirma" name="confirmarSenha" type="password" autocomplete="new-password">
+      </div>
+      <div class="err" id="login-err" role="alert" aria-live="polite"></div>
       <button class="submit" id="login-btn" type="submit">ENTRAR NO PREGÃO</button>
+      <button class="auth-switch" id="auth-switch" type="button">Criar uma conta</button>
     </form>
   </div>
 </div>
@@ -1413,13 +1420,71 @@ function conectar() {
   socket.onerror = () => definirConexao('OFFLINE');
 }
 
-document.getElementById('login-form').addEventListener('submit', (e) => {
+let authMode = 'login';
+
+function definirModoAuth(modo) {
+  authMode = modo;
+  const cadastro = modo === 'cadastro';
+  document.getElementById('auth-title').textContent = cadastro ? 'CRIAR CONTA' : 'ENTRAR';
+  document.getElementById('auth-description').textContent = cadastro
+    ? 'Abra sua conta para entrar no pregão.'
+    : 'Identifique-se para operar. A carne é um recurso.';
+  document.getElementById('confirm-field').hidden = !cadastro;
+  document.getElementById('login-confirma').required = cadastro;
+  document.getElementById('login-senha').autocomplete = cadastro ? 'new-password' : 'current-password';
+  document.getElementById('login-btn').textContent = cadastro ? 'CRIAR CONTA' : 'ENTRAR NO PREGÃO';
+  document.getElementById('auth-switch').textContent = cadastro ? 'Já tem uma conta? Entrar' : 'Criar uma conta';
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('login-confirma').value = '';
+}
+
+document.getElementById('auth-switch').addEventListener('click', () => {
+  definirModoAuth(authMode === 'login' ? 'cadastro' : 'login');
+  document.getElementById('login-user').focus();
+});
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const userId = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
+  const botao = document.getElementById('login-btn');
+  const erro = document.getElementById('login-err');
   if (!userId || !senha) return;
-  document.getElementById('login-btn').disabled = true;
-  document.getElementById('login-err').textContent = '';
+
+  if (authMode === 'cadastro') {
+    const confirmar = document.getElementById('login-confirma').value;
+    if (senha !== confirmar) {
+      erro.textContent = 'As senhas não coincidem.';
+      document.getElementById('login-confirma').focus();
+      return;
+    }
+    botao.disabled = true;
+    botao.textContent = 'CRIANDO CONTA...';
+    erro.textContent = '';
+    try {
+      const resposta = await fetch('/auth/cadastrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: userId, senha })
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        erro.textContent = dados.erro || 'Não foi possível criar a conta. Tente novamente.';
+        return;
+      }
+      definirModoAuth('login');
+      document.getElementById('login-user').value = userId;
+      document.getElementById('login-senha').value = senha;
+    } catch (_) {
+      erro.textContent = 'Servidor indisponível. Tente novamente.';
+      return;
+    } finally {
+      botao.disabled = false;
+    }
+  }
+
+  botao.disabled = true;
+  erro.textContent = '';
   definirConexao('CONECTANDO');
   jogador = { userId, senha };
   conectar();

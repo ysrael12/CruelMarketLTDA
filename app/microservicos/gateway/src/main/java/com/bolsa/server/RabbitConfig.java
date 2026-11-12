@@ -1,8 +1,10 @@
 package com.bolsa.server;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -30,22 +32,28 @@ public class RabbitConfig{
     public static final String PRICE_UPDATED = "price.updated";
     public static final String TRADE_EXECUTED = "trade.executed";
 
-    public static final String EXCHANGE = "api.exchange";
-    public static final String FILA_MD = "q.mercado";
-    public static final String ROUTING_KEY_MD = "md.request";
+    public static final String FILA_PRECOS_GATEWAY = "q.gateway.price.updated";
 
-    @Bean 
-    public DirectExchange exchange(){
-        return new DirectExchange(EXCHANGE);
+    @Bean
+    public TopicExchange exchangeEventos() {
+        return new TopicExchange(EXCHANGE_EVENTOS, true, false);
     }
 
     @Bean
-    public Queue filaMd() {
-        return new Queue(FILA_MD);
+    public FanoutExchange exchangePubsub() {
+        return new FanoutExchange(EXCHANGE_PUBSUB, true, false);
     }
 
     @Bean
-    public Binding bindingAtivos(Queue filaMd, DirectExchange exchange) {
-        return BindingBuilder.bind(filaMd).to(exchange).with(ROUTING_KEY_MD);
+    public Queue filaPrecosGateway() {
+        return QueueBuilder.durable(FILA_PRECOS_GATEWAY).quorum().build();
     }
+
+    @Bean
+    public Binding bindingPrecosGateway(Queue filaPrecosGateway, TopicExchange exchangeEventos) {
+        return BindingBuilder.bind(filaPrecosGateway)
+                .to(exchangeEventos)
+                .with(PRICE_UPDATED + ".*.*");
+    }
+
 }

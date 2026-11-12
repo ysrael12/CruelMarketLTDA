@@ -1,6 +1,7 @@
 package com.bolsa.server;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ public class TokenService {
     private RabbitTemplate rabbitTemplate;
 
     public record DadosToken(String userId, String username, long expiraEm) {}
+    public record UsuarioAutenticado(String username) {}
 
     public ResponseEntity<?> cadastrar(GatewayAuthController.CredenciaisDTO dto) {
         if (dto == null || dto.username() == null || dto.username().isBlank()
@@ -43,6 +45,43 @@ public class TokenService {
         }
         String comando = "LOGIN;" + dto.username().trim() + ";" + dto.senha();
         return processarLoginOuCadastroNoRabbit(comando);
+    }
+
+    /** Valida credenciais via user-data sem criar token para o handshake WebSocket. */
+    public ResponseEntity<?> autenticarCredenciais(String username, String senha) {
+        if (username == null || username.isBlank() || senha == null || senha.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("erro", "Credenciais invalidas"));
+        }
+
+        final Object resposta;
+        try {
+            resposta = rabbitTemplate.convertSendAndReceive(
+                    "usuarios.rpc.fila", "LOGIN;" + username.trim() + ";" + senha);
+        } catch (AmqpException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("erro", "Servico de usuarios indisponivel"));
+        }
+
+        if (resposta == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("erro", "Servico de usuarios nao respondeu"));
+        }
+
+        String[] partes = resposta.toString().split(";", 3);
+        if (partes.length == 3 && partes[0].equals("OK")) {
+            return ResponseEntity.ok(new UsuarioAutenticado(partes[2]));
+        }
+        if (partes.length == 3 && partes[0].equals("ERRO")) {
+            try {
+                return ResponseEntity.status(Integer.parseInt(partes[1]))
+                        .body(Map.of("erro", partes[2]));
+            } catch (NumberFormatException ignored) {
+                // resposta inválida do user-data: abaixo devolve 502
+            }
+        }
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("erro", "Resposta invalida do servico de usuarios"));
     }
 
     public ResponseEntity<?> validar(String authHeader) {

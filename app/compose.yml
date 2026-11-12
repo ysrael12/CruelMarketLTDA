@@ -1,4 +1,5 @@
 services:
+  # Broker legado mantido durante a migração para preservar o estado atual.
   rabbitmq:
     image: rabbitmq:4-management
     ports:
@@ -12,6 +13,104 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - mainServer
+
+  rabbitmq-1:
+    image: rabbitmq:4-management
+    hostname: rabbitmq-1
+    restart: unless-stopped
+    expose:
+      - "5672"
+      - "15672"
+      - "25672"
+      - "4369"
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq-1
+      RABBITMQ_ERLANG_COOKIE: cruelmarketclusterdevcookie
+      RABBITMQ_DEFAULT_USER: cruel
+      RABBITMQ_DEFAULT_PASS: cruel123
+    volumes:
+      - rabbitmq_node1_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mainServer
+
+  rabbitmq-2:
+    image: rabbitmq:4-management
+    hostname: rabbitmq-2
+    restart: unless-stopped
+    expose:
+      - "5672"
+      - "15672"
+      - "25672"
+      - "4369"
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq-2
+      RABBITMQ_ERLANG_COOKIE: cruelmarketclusterdevcookie
+      RABBITMQ_DEFAULT_USER: cruel
+      RABBITMQ_DEFAULT_PASS: cruel123
+    volumes:
+      - rabbitmq_node2_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mainServer
+
+  rabbitmq-3:
+    image: rabbitmq:4-management
+    hostname: rabbitmq-3
+    restart: unless-stopped
+    expose:
+      - "5672"
+      - "15672"
+      - "25672"
+      - "4369"
+    environment:
+      RABBITMQ_NODENAME: rabbit@rabbitmq-3
+      RABBITMQ_ERLANG_COOKIE: cruelmarketclusterdevcookie
+      RABBITMQ_DEFAULT_USER: cruel
+      RABBITMQ_DEFAULT_PASS: cruel123
+    volumes:
+      - rabbitmq_node3_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mainServer
+
+  rabbitmq-cluster-proxy:
+    image: haproxy:3.2-alpine
+    restart: unless-stopped
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - ./rabbitmq/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:15672/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      rabbitmq-1:
+        condition: service_healthy
+      rabbitmq-2:
+        condition: service_healthy
+      rabbitmq-3:
+        condition: service_healthy
     networks:
       - mainServer
 
@@ -34,11 +133,11 @@ services:
     expose:
       - "8082"
     environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
       SPRING_RABBITMQ_USERNAME: cruel
       SPRING_RABBITMQ_PASSWORD: cruel123
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -48,11 +147,11 @@ services:
     expose:
       - "8082"
     environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
       SPRING_RABBITMQ_USERNAME: cruel
       SPRING_RABBITMQ_PASSWORD: cruel123
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -62,11 +161,11 @@ services:
     expose:
       - "8082"
     environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
       SPRING_RABBITMQ_USERNAME: cruel
       SPRING_RABBITMQ_PASSWORD: cruel123
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -76,11 +175,11 @@ services:
     expose:
       - "8082"
     environment:
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
       SPRING_RABBITMQ_USERNAME: cruel
       SPRING_RABBITMQ_PASSWORD: cruel123
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -90,13 +189,13 @@ services:
     networks:
       - mainServer
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     environment:
       DB_URL: postgresql://user:123@bd-order-service:5432/order_service
       DB_USER: user
       DB_PASSWORD: "123"
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
 
   market-data:
     build: "./microservicos/market data"
@@ -105,7 +204,7 @@ services:
       - "3000"
     environment:
       PORT: 3000
-      RABBITMQ_URL: amqp://cruel:cruel123@rabbitmq:5672
+      RABBITMQ_URL: amqp://cruel:cruel123@rabbitmq-cluster-proxy:5672
       PARTICOES: 4
       DB_PATH: /app/data/market.db
       TICK_MS: 1000
@@ -123,7 +222,7 @@ services:
       retries: 5
       start_period: 15s
     depends_on:
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -138,14 +237,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://bd-user-data:5432/user_data
       SPRING_DATASOURCE_USERNAME: user
       SPRING_DATASOURCE_PASSWORD: "123"
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: rabbitmq-cluster-proxy
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: cruel
       SPRING_RABBITMQ_PASSWORD: cruel123
     depends_on:
       bd-user-data:
         condition: service_started
-      rabbitmq:
+      rabbitmq-cluster-proxy:
         condition: service_healthy
     networks:
       - mainServer
@@ -194,6 +293,9 @@ networks:
     driver: bridge
 
 volumes:
+  rabbitmq_node1_data:
+  rabbitmq_node2_data:
+  rabbitmq_node3_data:
   market-data:
   postgres_market_data:
   postgres_order_service:

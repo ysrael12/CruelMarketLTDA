@@ -2,6 +2,7 @@ package com.bolsa.server;
 
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +16,7 @@ public class AuthApplication {
 
     @Bean
     public Queue usuariosRpcQueue() {
-        return new Queue("usuarios.rpc.fila", true);
+        return QueueBuilder.durable("usuarios.rpc.fila").quorum().build();
     }
 
     @Bean
