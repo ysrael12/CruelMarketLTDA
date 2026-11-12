@@ -30,6 +30,7 @@ public class PonteTrades {
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = FILA, durable = "true", arguments = {
+                    @Argument(name = "x-queue-type", value = "quorum"),
                     @Argument(name = "x-dead-letter-exchange", value = Nomes.EXCHANGE_DLX),
                     @Argument(name = "x-dead-letter-routing-key", value = Nomes.CHAVE_DLQ)
             }),

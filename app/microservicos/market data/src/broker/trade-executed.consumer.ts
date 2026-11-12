@@ -29,13 +29,17 @@ export class TradeExecutedConsumer {
     async preparar(canal: Channel): Promise<void> {
         await canal.assertExchange(EXCHANGE_EVENTOS, "topic", { durable: true });
         await canal.assertExchange(EXCHANGE_DLX, "direct", { durable: true });
-        await canal.assertQueue(FILA_DLQ, { durable: true });
+        await canal.assertQueue(FILA_DLQ, {
+            durable: true,
+            arguments: { "x-queue-type": "quorum" },
+        });
         await canal.bindQueue(FILA_DLQ, EXCHANGE_DLX, CHAVE_DLQ);
 
         await canal.assertQueue(FILA_MERCADO, {
             durable: true,
             deadLetterExchange: EXCHANGE_DLX,
             deadLetterRoutingKey: CHAVE_DLQ,
+            arguments: { "x-queue-type": "quorum" },
         });
         await canal.bindQueue(FILA_MERCADO, EXCHANGE_EVENTOS, `${TRADE_EXECUTED}.*.*`);
         await canal.prefetch(10);

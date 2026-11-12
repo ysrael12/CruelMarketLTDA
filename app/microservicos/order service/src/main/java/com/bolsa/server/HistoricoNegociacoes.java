@@ -10,6 +10,7 @@ import java.util.List;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Argument;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -29,7 +30,8 @@ public class HistoricoNegociacoes {
     private final String host = System.getenv().getOrDefault("HOSTNAME", "local");
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = "q.historico", durable = "true"),
+            value = @Queue(value = "q.historico", durable = "true",
+                    arguments = @Argument(name = "x-queue-type", value = "quorum")),
             exchange = @Exchange(value = "trades.exchange", type = ExchangeTypes.FANOUT)))
     public void registrar(Message msg) {
     

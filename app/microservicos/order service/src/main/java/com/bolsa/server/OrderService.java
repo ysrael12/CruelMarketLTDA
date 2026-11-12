@@ -1,6 +1,7 @@
 package com.bolsa.server;
 
 import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.Argument;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -23,7 +24,10 @@ public class OrderService {
     private final List<Ordem> vendas = new ArrayList<>();
     private final AtomicLong sequencia = new AtomicLong(0);
 
-    @RabbitListener(queuesToDeclare = @Queue(name = "ordens.fila", durable = "true"))
+    @RabbitListener(queuesToDeclare = @Queue(
+            name = "ordens.fila",
+            durable = "true",
+            arguments = @Argument(name = "x-queue-type", value = "quorum")))
     public synchronized void receberOrdem(Message msg) {
 		//faz a mensagem
         String mensagem = new String(msg.getBody(), StandardCharsets.UTF_8)

@@ -38,6 +38,7 @@ public class RabbitConfig {
     @Bean
     Queue dlq() {
         return QueueBuilder.durable(Nomes.FILA_DLQ)
+                .quorum()
                 .build();
     }
 
@@ -50,6 +51,7 @@ public class RabbitConfig {
 
     private QueueBuilder duravel(String nome) {
         return QueueBuilder.durable(nome)
+                .quorum()
                 .deadLetterExchange(Nomes.EXCHANGE_DLX)
                 .deadLetterRoutingKey(Nomes.CHAVE_DLQ);
     }
